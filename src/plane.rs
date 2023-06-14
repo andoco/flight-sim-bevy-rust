@@ -144,8 +144,8 @@ fn handle_keyboard_input(
 }
 
 #[derive(Component)]
-struct PlaneForce {
-    lift: f32,
+pub struct PlaneForce {
+    pub lift: f32,
 }
 
 fn compute_forces(mut commands: Commands, query: Query<(Entity, &Velocity), With<Plane>>) {
