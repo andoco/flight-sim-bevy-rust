@@ -130,10 +130,10 @@ fn handle_keyboard_input(
         external_force.torque = global_tx.forward() * 100.;
     }
     if action_state.pressed(PlaneAction::PitchUp) {
-        external_force.torque = global_tx.right() * -0.1;
+        external_force.torque = global_tx.right() * -100.;
     }
     if action_state.pressed(PlaneAction::PitchDown) {
-        external_force.torque = global_tx.right() * 0.1;
+        external_force.torque = global_tx.right() * 100.;
     }
     if action_state.pressed(PlaneAction::ThrustUp) {
         external_force.force += global_tx.forward() * 0.1;
