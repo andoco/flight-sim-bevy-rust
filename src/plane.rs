@@ -162,23 +162,3 @@ fn apply_forces(
         external_force.force = global_tx.up() * plane_force.lift;
     }
 }
-
-// fn stabilise(mut query: Query<(&GlobalTransform, &mut ExternalForce), With<Plane>>) {
-//     for (global_tx, mut external_force) in query.iter_mut() {
-//         let (_, rotation, _) = global_tx.to_scale_rotation_translation();
-//         let (x, y, z) = rotation.to_euler(EulerRot::XYZ);
-
-//         info!("{}", z.to_degrees());
-
-//         // let x_factor = 0.1 / 10.0 * x.abs().to_degrees().min(10.0) * -x.signum();
-//         let z_factor = 0.1 / 10.0 * z.abs().to_degrees().min(10.0) * -z.signum();
-
-//         // external_force.torque = ((global_tx.right() * x_factor).normalize_or_zero()
-//         //     + (global_tx.forward() * z_factor).normalize_or_zero())
-//         //     * 0.1;
-
-//         // let rot = Quat::from_rotation_arc(global_tx.forward(), Vec3::Z);
-
-//         external_force.torque = global_tx.forward() * z_factor;
-//     }
-// }
