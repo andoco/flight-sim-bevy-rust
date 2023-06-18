@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use bevy_rapier3d::prelude::Velocity;
 
-use crate::plane::{Plane, PlaneForce};
+use crate::plane::{Plane, PlaneFlight};
 
 pub struct HudUiPlugin;
 
@@ -14,9 +14,9 @@ impl Plugin for HudUiPlugin {
 
 fn hud_ui(
     mut contexts: EguiContexts,
-    plane_query: Query<(&GlobalTransform, &PlaneForce, &Velocity), With<Plane>>,
+    plane_query: Query<(&GlobalTransform, &Velocity, &PlaneFlight), With<Plane>>,
 ) {
-    let Ok((global_tx, plane_force, velocity)) = plane_query.get_single() else {
+    let Ok((global_tx, velocity, flight)) = plane_query.get_single() else {
         return;
     };
 
@@ -24,10 +24,10 @@ fn hud_ui(
 
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
         ui.label(format!(
-            "altitude = {}, velocity = {}, lift = {}",
+            "altitude = {}, velocity = {}, thrust = {}",
             global_tx.translation().y,
             velocity.linvel.length(),
-            plane_force.lift
+            flight.thrust
         ));
     });
 }

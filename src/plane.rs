@@ -14,12 +14,27 @@ impl Plugin for PlanePlugin {
         app.add_plugin(InputManagerPlugin::<PlaneAction>::default())
             .add_startup_system(setup_plane)
             .add_system(add_plane_input)
-            .add_systems((handle_keyboard_input, compute_forces, apply_forces).chain());
+            .add_systems(
+                (
+                    handle_keyboard_input,
+                    compute_angle_of_attack,
+                    apply_thrust,
+                    apply_drag,
+                    apply_lift,
+                )
+                    .chain(),
+            );
     }
 }
 
 #[derive(Component)]
 pub struct Plane;
+
+#[derive(Component, Default)]
+pub struct PlaneFlight {
+    pub thrust: f32,
+    pub angle_of_attack: f32,
+}
 
 fn setup_plane(
     mut commands: Commands,
@@ -29,6 +44,7 @@ fn setup_plane(
     commands
         .spawn((
             Plane,
+            PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(0., 20., 0.)),
             RigidBody::Dynamic,
             Velocity {
@@ -99,11 +115,13 @@ fn handle_keyboard_input(
             &ActionState<PlaneAction>,
             &GlobalTransform,
             &mut ExternalForce,
+            &mut PlaneFlight,
         ),
         With<Plane>,
     >,
+    time: Res<Time>,
 ) {
-    let Ok((action_state, global_tx, mut external_force)) = query.get_single_mut() else {
+    let Ok((action_state, global_tx, mut external_force, mut flight)) = query.get_single_mut() else {
         return
     };
 
@@ -136,29 +154,59 @@ fn handle_keyboard_input(
         external_force.torque = global_tx.right() * 100.;
     }
     if action_state.pressed(PlaneAction::ThrustUp) {
-        external_force.force += global_tx.forward() * 0.1;
+        flight.thrust += 10.0 * time.delta_seconds();
     }
     if action_state.pressed(PlaneAction::ThrustDown) {
-        external_force.force -= global_tx.forward() * 0.1;
+        flight.thrust -= 10.0 * time.delta_seconds();
     }
 }
 
-#[derive(Component)]
-pub struct PlaneForce {
-    pub lift: f32,
-}
-
-fn compute_forces(mut commands: Commands, query: Query<(Entity, &Velocity), With<Plane>>) {
-    for (entity, velocity) in query.iter() {
-        let lift = 40.0 * velocity.linvel.length_squared();
-        commands.entity(entity).insert(PlaneForce { lift });
-    }
-}
-
-fn apply_forces(
-    mut query: Query<(&GlobalTransform, &PlaneForce, &mut ExternalForce), With<Plane>>,
+fn compute_angle_of_attack(
+    mut query: Query<(&GlobalTransform, &Velocity, &mut PlaneFlight), With<Plane>>,
 ) {
-    for (global_tx, plane_force, mut external_force) in query.iter_mut() {
-        external_force.force = global_tx.up() * plane_force.lift;
+    for (global_tx, velocity, mut flight) in query.iter_mut() {
+        flight.angle_of_attack = velocity
+            .linvel
+            .normalize()
+            .dot(global_tx.forward())
+            .powf(2.);
+    }
+}
+
+fn apply_thrust(
+    mut query: Query<(&GlobalTransform, &PlaneFlight, &mut ExternalForce), With<Plane>>,
+) {
+    for (global_tx, flight, mut external_force) in query.iter_mut() {
+        external_force.force = global_tx.forward() * flight.thrust;
+    }
+}
+
+fn apply_drag(mut query: Query<(&GlobalTransform, &Velocity, &mut ExternalForce), With<Plane>>) {
+    for (global_tx, velocity, mut external_force) in query.iter_mut() {
+        let drag = 10.0 * velocity.linvel.length();
+        let drag_force = -velocity.linvel.normalize() * drag;
+        external_force.force += drag_force;
+    }
+}
+
+fn apply_lift(
+    mut query: Query<
+        (
+            &GlobalTransform,
+            &Velocity,
+            &PlaneFlight,
+            &mut ExternalForce,
+        ),
+        With<Plane>,
+    >,
+) {
+    for (global_tx, velocity, flight, mut external_force) in query.iter_mut() {
+        let lift_power = 40.0 * velocity.linvel.length_squared();
+
+        let lift_direction = global_tx.up();
+
+        let lift_force = lift_direction * lift_power * flight.angle_of_attack;
+
+        external_force.force += lift_force;
     }
 }
