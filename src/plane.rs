@@ -45,12 +45,9 @@ fn setup_plane(
         .spawn((
             Plane,
             PlaneFlight::default(),
-            SpatialBundle::from_transform(Transform::from_xyz(0., 20., 0.)),
+            SpatialBundle::from_transform(Transform::from_xyz(10., 1.1, 0.)),
             RigidBody::Dynamic,
-            Velocity {
-                linvel: -Vec3::Z * 3.2,
-                ..default()
-            },
+            Velocity::zero(),
             ExternalForce::default(),
             camera::Follow,
             BlockPos(0, 0),
@@ -63,6 +60,7 @@ fn setup_plane(
                     material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
                     ..default()
                 },
+                Friction::new(0.01),
                 Collider::cuboid(1.0, 1.0, 5.0),
             ));
 
@@ -167,7 +165,7 @@ fn compute_angle_of_attack(
     for (global_tx, velocity, mut flight) in query.iter_mut() {
         flight.angle_of_attack = velocity
             .linvel
-            .normalize()
+            .normalize_or_zero()
             .dot(global_tx.forward())
             .powf(2.);
     }
@@ -184,7 +182,7 @@ fn apply_thrust(
 fn apply_drag(mut query: Query<(&GlobalTransform, &Velocity, &mut ExternalForce), With<Plane>>) {
     for (global_tx, velocity, mut external_force) in query.iter_mut() {
         let drag = 10.0 * velocity.linvel.length();
-        let drag_force = -velocity.linvel.normalize() * drag;
+        let drag_force = -velocity.linvel.normalize_or_zero() * drag;
         external_force.force += drag_force;
     }
 }

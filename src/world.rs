@@ -41,7 +41,7 @@ fn setup_ground(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands
-        .spawn(Collider::cuboid(1000.0, 0.1, 1000.0))
+        .spawn((Collider::cuboid(1000.0, 0.1, 1000.0), Friction::new(0.01)))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Plane {
                 size: 2000.,
