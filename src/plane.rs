@@ -204,26 +204,16 @@ fn apply_thrust(
     }
 }
 
-fn apply_drag(mut query: Query<(&GlobalTransform, &Velocity, &mut ExternalForce), With<Plane>>) {
-    for (global_tx, velocity, mut external_force) in query.iter_mut() {
+fn apply_drag(mut query: Query<(&Velocity, &mut ExternalForce), With<Plane>>) {
+    for (velocity, mut external_force) in query.iter_mut() {
         let drag = 10.0 * velocity.linvel.length();
         let drag_force = -velocity.linvel.normalize_or_zero() * drag;
         external_force.force += drag_force;
     }
 }
 
-fn apply_lift(
-    mut query: Query<
-        (
-            &GlobalTransform,
-            &Velocity,
-            &PlaneFlight,
-            &mut ExternalForce,
-        ),
-        With<Plane>,
-    >,
-) {
-    for (global_tx, velocity, flight, mut external_force) in query.iter_mut() {
+fn apply_lift(mut query: Query<(&GlobalTransform, &PlaneFlight, &mut ExternalForce), With<Plane>>) {
+    for (global_tx, flight, mut external_force) in query.iter_mut() {
         let lift_force = global_tx.up() * flight.lift * flight.angle_of_attack;
 
         external_force.force += lift_force;
