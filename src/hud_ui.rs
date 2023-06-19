@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use bevy_rapier3d::prelude::Velocity;
 
@@ -24,10 +24,11 @@ fn hud_ui(
 
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
         ui.label(format!(
-            "altitude = {:.4}, velocity = {:.4}, aoa = {:.4}, lift = {:.4}, thrust = {:.4}",
+            "altitude = {:.4}, velocity = {:.4}, aoa = {:.4}, weight = {:.4}, lift = {:.4}, thrust = {:.4}",
             global_tx.translation().y,
             velocity.linvel.length(),
             flight.angle_of_attack.to_degrees(),
+            flight.weight,
             flight.lift,
             flight.thrust
         ));

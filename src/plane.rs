@@ -40,6 +40,7 @@ pub struct PlaneFlight {
     pub thrust: f32,
     pub angle_of_attack: f32,
     pub lift: f32,
+    pub weight: f32,
 }
 
 fn setup_plane(
@@ -56,6 +57,7 @@ fn setup_plane(
             RigidBody::Dynamic,
             Velocity::zero(),
             ExternalForce::default(),
+            ReadMassProperties::default(),
             camera::Follow,
             BlockPos(0, 0),
         ))
@@ -170,9 +172,18 @@ fn handle_keyboard_input(
 }
 
 fn compute_flight_dynamics(
-    mut query: Query<(&GlobalTransform, &Velocity, &mut PlaneFlight), With<Plane>>,
+    mut query: Query<
+        (
+            &GlobalTransform,
+            &Velocity,
+            &ReadMassProperties,
+            &mut PlaneFlight,
+        ),
+        With<Plane>,
+    >,
+    rapier_config: Res<RapierConfiguration>,
 ) {
-    for (global_tx, velocity, mut flight) in query.iter_mut() {
+    for (global_tx, velocity, ReadMassProperties(mass_props), mut flight) in query.iter_mut() {
         flight.angle_of_attack = velocity
             .linvel
             .normalize_or_zero()
@@ -180,6 +191,8 @@ fn compute_flight_dynamics(
             .powf(2.);
 
         flight.lift = 40.0 * velocity.linvel.length_squared();
+
+        flight.weight = rapier_config.gravity.y.abs() * mass_props.mass;
     }
 }
 
