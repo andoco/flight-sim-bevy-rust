@@ -17,7 +17,7 @@ impl Plugin for PlanePlugin {
             .add_systems(
                 (
                     handle_keyboard_input,
-                    compute_angle_of_attack,
+                    compute_flight_dynamics,
                     apply_thrust,
                     apply_drag,
                     apply_lift,
@@ -30,10 +30,16 @@ impl Plugin for PlanePlugin {
 #[derive(Component)]
 pub struct Plane;
 
+#[derive(Component)]
+pub struct PlaneLimits {
+    pub thrust: f32,
+}
+
 #[derive(Component, Default)]
 pub struct PlaneFlight {
     pub thrust: f32,
     pub angle_of_attack: f32,
+    pub lift: f32,
 }
 
 fn setup_plane(
@@ -44,6 +50,7 @@ fn setup_plane(
     commands
         .spawn((
             Plane,
+            PlaneLimits { thrust: 35.0 },
             PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(10., 1.1, 0.)),
             RigidBody::Dynamic,
@@ -112,6 +119,7 @@ fn handle_keyboard_input(
         (
             &ActionState<PlaneAction>,
             &GlobalTransform,
+            &PlaneLimits,
             &mut ExternalForce,
             &mut PlaneFlight,
         ),
@@ -119,7 +127,7 @@ fn handle_keyboard_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((action_state, global_tx, mut external_force, mut flight)) = query.get_single_mut() else {
+    let Ok((action_state, global_tx, limits, mut external_force, mut flight)) = query.get_single_mut() else {
         return
     };
 
@@ -157,9 +165,11 @@ fn handle_keyboard_input(
     if action_state.pressed(PlaneAction::ThrustDown) {
         flight.thrust -= 10.0 * time.delta_seconds();
     }
+
+    flight.thrust = flight.thrust.clamp(0., limits.thrust);
 }
 
-fn compute_angle_of_attack(
+fn compute_flight_dynamics(
     mut query: Query<(&GlobalTransform, &Velocity, &mut PlaneFlight), With<Plane>>,
 ) {
     for (global_tx, velocity, mut flight) in query.iter_mut() {
@@ -168,6 +178,8 @@ fn compute_angle_of_attack(
             .normalize_or_zero()
             .dot(global_tx.forward())
             .powf(2.);
+
+        flight.lift = 40.0 * velocity.linvel.length_squared();
     }
 }
 
@@ -199,11 +211,7 @@ fn apply_lift(
     >,
 ) {
     for (global_tx, velocity, flight, mut external_force) in query.iter_mut() {
-        let lift_power = 40.0 * velocity.linvel.length_squared();
-
-        let lift_direction = global_tx.up();
-
-        let lift_force = lift_direction * lift_power * flight.angle_of_attack;
+        let lift_force = global_tx.up() * flight.lift * flight.angle_of_attack;
 
         external_force.force += lift_force;
     }
