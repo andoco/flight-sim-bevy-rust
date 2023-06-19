@@ -1,3 +1,5 @@
+use core::f32;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::{
@@ -14,16 +16,7 @@ impl Plugin for PlanePlugin {
         app.add_plugin(InputManagerPlugin::<PlaneAction>::default())
             .add_startup_system(setup_plane)
             .add_system(add_plane_input)
-            .add_systems(
-                (
-                    handle_keyboard_input,
-                    compute_flight_dynamics,
-                    apply_thrust,
-                    apply_drag,
-                    apply_lift,
-                )
-                    .chain(),
-            );
+            .add_systems((handle_keyboard_input, compute_flight_dynamics).chain());
     }
 }
 
@@ -41,6 +34,7 @@ pub struct PlaneFlight {
     pub angle_of_attack: f32,
     pub lift: f32,
     pub weight: f32,
+    pub drag: f32,
 }
 
 fn setup_plane(
@@ -51,7 +45,7 @@ fn setup_plane(
     commands
         .spawn((
             Plane,
-            PlaneLimits { thrust: 35.0 },
+            PlaneLimits { thrust: 150.0 },
             PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(10., 1.1, 0.)),
             RigidBody::Dynamic,
@@ -178,44 +172,51 @@ fn compute_flight_dynamics(
             &Velocity,
             &ReadMassProperties,
             &mut PlaneFlight,
+            &mut ExternalForce,
         ),
         With<Plane>,
     >,
     rapier_config: Res<RapierConfiguration>,
 ) {
-    for (global_tx, velocity, ReadMassProperties(mass_props), mut flight) in query.iter_mut() {
-        flight.angle_of_attack = velocity
-            .linvel
-            .normalize_or_zero()
-            .dot(global_tx.forward())
-            .powf(2.);
+    for (global_tx, velocity, ReadMassProperties(mass_props), mut flight, mut external_force) in
+        query.iter_mut()
+    {
+        // flight.angle_of_attack = velocity
+        //     .linvel
+        //     .normalize_or_zero()
+        //     .dot(global_tx.forward())
+        //     .powf(2.);
 
-        flight.lift = 40.0 * velocity.linvel.length_squared();
+        // Angle between the chord line of the wing (front edge to back edge) and the velocity
+        // of the air flowing over the wing.
+        // let angle_of_attack = global_tx.back().angle_between(-velocity.linvel);
+        let angle_of_attack = global_tx.forward().angle_between(velocity.linvel);
 
+        let air_density = 1.225; // 1.225 kg/m^3 at sea level
+        let dynamic_pressure = 0.5 * air_density * velocity.linvel.length_squared();
+        let wing_area = 10.0 * 2.0; // length * width = area m^2
+
+        let lift_coefficient = 0.35; // For Cessna 172 at 0 degrees angle of attack
+        let lift = lift_coefficient * dynamic_pressure * wing_area;
+
+        let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
+        let drag = drag_coefficient * dynamic_pressure * wing_area;
+
+        flight.angle_of_attack = angle_of_attack;
+        flight.lift = lift;
         flight.weight = rapier_config.gravity.y.abs() * mass_props.mass;
-    }
-}
+        flight.drag = drag;
 
-fn apply_thrust(
-    mut query: Query<(&GlobalTransform, &PlaneFlight, &mut ExternalForce), With<Plane>>,
-) {
-    for (global_tx, flight, mut external_force) in query.iter_mut() {
+        info!(
+            "v={}, aoa={}, l={}, d={}",
+            velocity.linvel.length(),
+            angle_of_attack.to_degrees(),
+            lift,
+            drag
+        );
+
         external_force.force = global_tx.forward() * flight.thrust;
-    }
-}
-
-fn apply_drag(mut query: Query<(&Velocity, &mut ExternalForce), With<Plane>>) {
-    for (velocity, mut external_force) in query.iter_mut() {
-        let drag = 10.0 * velocity.linvel.length();
-        let drag_force = -velocity.linvel.normalize_or_zero() * drag;
-        external_force.force += drag_force;
-    }
-}
-
-fn apply_lift(mut query: Query<(&GlobalTransform, &PlaneFlight, &mut ExternalForce), With<Plane>>) {
-    for (global_tx, flight, mut external_force) in query.iter_mut() {
-        let lift_force = global_tx.up() * flight.lift * flight.angle_of_attack;
-
-        external_force.force += lift_force;
+        external_force.force += -velocity.linvel.normalize_or_zero() * flight.drag;
+        external_force.force += global_tx.up() * flight.lift;
     }
 }
