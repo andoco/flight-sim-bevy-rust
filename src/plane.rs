@@ -196,7 +196,13 @@ fn compute_flight_dynamics(
         let dynamic_pressure = 0.5 * air_density * velocity.linvel.length_squared();
         let wing_area = 10.0 * 2.0; // length * width = area m^2
 
-        let lift_coefficient = 0.35; // For Cessna 172 at 0 degrees angle of attack
+        // Approximate lift coefficients For Cessna 172
+        let lift_coefficient = match angle_of_attack.to_degrees() as i32 {
+            0..=5 => 0.35,
+            6..=10 => 1.2,
+            11..=14 => 1.4,
+            _ => 0.0,
+        };
         let lift = lift_coefficient * dynamic_pressure * wing_area;
 
         let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
