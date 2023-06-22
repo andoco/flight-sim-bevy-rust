@@ -181,15 +181,8 @@ fn compute_flight_dynamics(
     for (global_tx, velocity, ReadMassProperties(mass_props), mut flight, mut external_force) in
         query.iter_mut()
     {
-        // flight.angle_of_attack = velocity
-        //     .linvel
-        //     .normalize_or_zero()
-        //     .dot(global_tx.forward())
-        //     .powf(2.);
-
         // Angle between the chord line of the wing (front edge to back edge) and the velocity
         // of the air flowing over the wing.
-        // let angle_of_attack = global_tx.back().angle_between(-velocity.linvel);
         let angle_of_attack = global_tx.forward().angle_between(velocity.linvel);
 
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
@@ -201,8 +194,10 @@ fn compute_flight_dynamics(
             0..=5 => 0.35,
             6..=10 => 1.2,
             11..=14 => 1.4,
+            15..=18 => 1.2,
             _ => 0.0,
         };
+
         let lift = lift_coefficient * dynamic_pressure * wing_area;
 
         let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
