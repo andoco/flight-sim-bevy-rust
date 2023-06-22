@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use bevy_egui::{
+    egui::{self, Ui},
+    EguiContexts, EguiPlugin,
+};
 use bevy_rapier3d::prelude::Velocity;
 
 use crate::plane::{Plane, PlaneFlight};
@@ -22,16 +25,26 @@ fn hud_ui(
 
     let ctx = contexts.ctx_mut();
 
-    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+    let width = 10;
+
+    let float_label = |ui: &mut Ui, txt: &str, val: f32| {
         ui.label(format!(
-            "altitude = {:.4}, velocity = {:.4}, aoa = {:.4}, weight = {:.4}, lift = {:.4}, drag = {:.4}, thrust = {:.4}",
-            global_tx.translation().y,
-            velocity.linvel.length(),
-            flight.angle_of_attack.to_degrees(),
-            flight.weight,
-            flight.lift,
-            flight.drag,
-            flight.thrust
+            "{txt}: {:0width$.4}",
+            val,
+            txt = txt,
+            width = width
         ));
+    };
+
+    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            float_label(ui, "altitude", global_tx.translation().y);
+            float_label(ui, "velocity", velocity.linvel.length());
+            float_label(ui, "aoa", flight.angle_of_attack.to_degrees());
+            float_label(ui, "weight", flight.weight);
+            float_label(ui, "lift", flight.lift);
+            float_label(ui, "drag", flight.drag);
+            float_label(ui, "thrust", flight.thrust);
+        });
     });
 }
