@@ -32,6 +32,7 @@ pub struct PlaneLimits {
 pub struct PlaneFlight {
     pub thrust: f32,
     pub angle_of_attack: f32,
+    pub airspeed: f32,
     pub lift: f32,
     pub weight: f32,
     pub drag: f32,
@@ -181,12 +182,15 @@ fn compute_flight_dynamics(
     for (global_tx, velocity, ReadMassProperties(mass_props), mut flight, mut external_force) in
         query.iter_mut()
     {
+        let local_velocity = (global_tx.translation() + velocity.linvel) - global_tx.translation();
+        let airspeed = -local_velocity.z;
+
         // Angle between the chord line of the wing (front edge to back edge) and the velocity
         // of the air flowing over the wing.
         let angle_of_attack = global_tx.forward().angle_between(velocity.linvel);
 
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
-        let dynamic_pressure = 0.5 * air_density * velocity.linvel.length_squared();
+        let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
         let wing_area = 10.0 * 2.0; // length * width = area m^2
 
         // Approximate lift coefficients For Cessna 172
@@ -204,16 +208,19 @@ fn compute_flight_dynamics(
         let drag = drag_coefficient * dynamic_pressure * wing_area;
 
         flight.angle_of_attack = angle_of_attack;
+        flight.airspeed = airspeed;
         flight.lift = lift;
         flight.weight = rapier_config.gravity.y.abs() * mass_props.mass;
         flight.drag = drag;
 
         info!(
-            "v={}, aoa={}, l={}, d={}",
+            "v={}, aoa={}, l={}, d={}, lv={}, airspeed={}",
             velocity.linvel.length(),
             angle_of_attack.to_degrees(),
             lift,
-            drag
+            drag,
+            local_velocity.length(),
+            airspeed
         );
 
         external_force.force = global_tx.forward() * flight.thrust;

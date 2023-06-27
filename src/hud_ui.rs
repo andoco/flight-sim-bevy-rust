@@ -40,6 +40,7 @@ fn hud_ui(
         ui.horizontal(|ui| {
             float_label(ui, "altitude", global_tx.translation().y);
             float_label(ui, "velocity", velocity.linvel.length());
+            float_label(ui, "airspeed", flight.airspeed);
             float_label(ui, "aoa", flight.angle_of_attack.to_degrees());
             float_label(ui, "weight", flight.weight);
             float_label(ui, "lift", flight.lift);
