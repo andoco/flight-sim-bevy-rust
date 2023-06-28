@@ -1633,6 +1633,7 @@ dependencies = [
 name = "flight-sim"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "bevy",
  "bevy_egui",
  "bevy_rapier3d",
