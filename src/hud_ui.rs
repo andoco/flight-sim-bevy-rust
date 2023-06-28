@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, Color32, FontDefinitions, FontFamily, FontId, RichText, Ui},
+    egui::{self, Color32, FontDefinitions, RichText, Ui},
     EguiContexts, EguiPlugin,
 };
 use bevy_rapier3d::prelude::Velocity;
