@@ -32,6 +32,7 @@ pub struct PlaneLimits {
     pub thrust: f32,
     pub fuselage: Vec3,
     pub wings: Vec2,
+    pub lift_coefficient_samples: Vec<f32>,
 }
 
 #[derive(Component, Default)]
@@ -49,10 +50,19 @@ fn setup_plane(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let lift_coefficient_curve = Linear::builder()
+        .elements([0.0, 0.0, 0.35, 1.4, 0.8, 0.0])
+        .knots([-90.0, -5.0, 0.0, 10.0, 15.0, 90.0])
+        .build()
+        .unwrap();
+
+    let lift_coefficient_samples: Vec<_> = lift_coefficient_curve.take(180).collect();
+
     let limits = PlaneLimits {
         thrust: 150.0,
         fuselage: Vec3::new(2.0, 2.0, 10.0),
         wings: Vec2::new(15.0, 2.0),
+        lift_coefficient_samples,
     };
 
     commands
@@ -185,10 +195,10 @@ fn handle_keyboard_input(
         external_force.torque = global_tx.forward() * 100.;
     }
     if action_state.pressed(PlaneAction::YawLeft) {
-        external_force.torque = global_tx.up() * 100.;
+        external_force.torque = global_tx.up() * 10.;
     }
     if action_state.pressed(PlaneAction::YawRight) {
-        external_force.torque = global_tx.up() * -100.;
+        external_force.torque = global_tx.up() * -10.;
     }
     if action_state.pressed(PlaneAction::PitchUp) {
         external_force.torque = global_tx.right() * -100.;
@@ -247,17 +257,10 @@ fn compute_flight_dynamics(
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
         let wing_area = limits.wings.x * limits.wings.y;
 
-        let lift_coefficient_curve = Linear::builder()
-            .elements([0.0, 0.0, 0.35, 1.4, 0.8, 0.0])
-            .knots([-90.0, -5.0, 0.0, 10.0, 15.0, 90.0])
-            .build()
-            .unwrap();
-
-        let lift_coefficient_samples: Vec<_> = lift_coefficient_curve.take(180).collect();
-
         let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
 
-        let lift_coefficient = lift_coefficient_samples
+        let lift_coefficient = limits
+            .lift_coefficient_samples
             .get(lift_coefficient_index)
             .unwrap_or(&0.0);
 
