@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    prelude::*,
+};
 use bevy_egui::{
     egui::{self, Color32, FontDefinitions, RichText, Ui},
     EguiContexts, EguiPlugin,
@@ -45,6 +48,7 @@ fn setup(mut contexts: EguiContexts) {
 fn hud_ui(
     mut contexts: EguiContexts,
     plane_query: Query<(&GlobalTransform, &Velocity, &PlaneFlight), With<Plane>>,
+    diagnostics: Res<Diagnostics>,
 ) {
     let Ok((global_tx, velocity, flight)) = plane_query.get_single() else {
         return;
@@ -80,7 +84,13 @@ fn hud_ui(
             _ => Color32::GREEN,
         };
 
+        let fps = diagnostics
+            .get_measurement(FrameTimeDiagnosticsPlugin::FPS)
+            .map(|m| m.value)
+            .unwrap_or(-1.0);
+
         ui.horizontal(|ui| {
+            float_label(ui, "fps", fps as f32, c);
             float_label(ui, "altitude", global_tx.translation().y, c);
             float_label(ui, "velocity", velocity.linvel.length(), c);
             float_label(ui, "airspeed", flight.airspeed, c);

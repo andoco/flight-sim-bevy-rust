@@ -3,7 +3,7 @@ mod hud_ui;
 mod plane;
 mod world;
 
-use bevy::prelude::*;
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
 use hud_ui::HudUiPlugin;
 use world::WorldPlugin;
 
@@ -16,6 +16,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugin(FrameTimeDiagnosticsPlugin)
         .add_plugin(WorldPlugin)
         .add_plugin(HudUiPlugin)
         .run();
