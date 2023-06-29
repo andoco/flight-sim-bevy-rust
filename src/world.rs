@@ -29,6 +29,7 @@ impl Plugin for WorldPlugin {
             })
             .add_startup_system(setup_lighting)
             .add_startup_system(setup_ground)
+            .add_system(update_sun)
             .add_system(update_block_positions)
             .add_system(generate_infinite_buildings);
     }
@@ -44,22 +45,38 @@ fn setup_lighting(mut commands: Commands) {
     .build();
 
     // Sun
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            color: Color::rgb(0.98, 0.95, 0.82),
-            shadows_enabled: true,
+    commands.spawn((
+        DirectionalLightBundle {
+            directional_light: DirectionalLight {
+                color: Color::rgb(0.98, 0.95, 0.82),
+                shadows_enabled: true,
+                ..default()
+            },
+            cascade_shadow_config,
             ..default()
         },
+        SunControl {
+            rotation: Quat::from_euler(
+                EulerRot::YXZ,
+                90_f32.to_radians(),
+                0_f32.to_radians(),
+                0_f32.to_radians(),
+            ),
+        },
+    ));
+}
 
-        transform: Transform::from_rotation(Quat::from_euler(
-            EulerRot::YXZ,
-            90_f32.to_radians(),
-            0_f32.to_radians(),
-            0_f32.to_radians(),
-        )),
-        cascade_shadow_config,
-        ..default()
-    });
+#[derive(Component)]
+pub struct SunControl {
+    pub rotation: Quat,
+}
+
+fn update_sun(mut query: Query<(&SunControl, &mut Transform), Changed<SunControl>>) {
+    let Ok((sun_control, mut tx)) = query.get_single_mut() else {
+        return;
+    };
+
+    tx.rotation = sun_control.rotation;
 }
 
 fn setup_ground(

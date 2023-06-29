@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{f32::consts::PI, time::Duration};
 
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
@@ -10,7 +10,7 @@ use bevy_egui::{
     EguiContexts, EguiPlugin,
 };
 
-use crate::{camera::FogControl, plane::PlaneFlight};
+use crate::{camera::FogControl, plane::PlaneFlight, world::SunControl};
 
 pub struct HudUiPlugin;
 
@@ -94,6 +94,7 @@ fn update_hud_ui(
     mut contexts: EguiContexts,
     model_query: Query<&HudModel>,
     mut fog_control: Query<&mut FogControl>,
+    mut sun_control: Query<&mut SunControl>,
 ) {
     let Ok(model) = model_query.get_single() else {
         return;
@@ -140,11 +141,29 @@ fn update_hud_ui(
             float_label(ui, "thrust", model.thrust, c);
         });
 
-        if let Ok(mut fog_control) = fog_control.get_single_mut() {
-            ui.add(
-                egui::Slider::new(&mut fog_control.visibility, 0.0..=5000.0).text("fog visibility"),
-            );
-        }
+        ui.horizontal(|ui| {
+            if let Ok(mut fog_control) = fog_control.get_single_mut() {
+                ui.group(|ui| {
+                    ui.label("Fog");
+                    ui.add(
+                        egui::Slider::new(&mut fog_control.visibility, 0.0..=5000.0)
+                            .text("visibility"),
+                    );
+                });
+            }
+
+            if let Ok(mut sun_control) = sun_control.get_single_mut() {
+                let (mut y, mut x, z) = sun_control.rotation.to_euler(EulerRot::YXZ);
+
+                ui.group(|ui| {
+                    ui.label("Sun direction");
+                    ui.add(egui::Slider::new(&mut x, 0.0..=PI * 2.0).text("x"));
+                    ui.add(egui::Slider::new(&mut y, 0.0..=PI * 2.0).text("y"));
+                });
+
+                sun_control.rotation = Quat::from_euler(EulerRot::YXZ, y, x, z);
+            }
+        });
     });
 }
 
