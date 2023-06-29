@@ -16,7 +16,17 @@ pub struct Follow;
 
 fn setup(mut commands: Commands) {
     commands
-        .spawn((Camera3dBundle { ..default() },))
+        .spawn((Camera3dBundle {
+            camera_3d: Camera3d {
+                clear_color: ClearColorConfig::Custom(Color::rgb(0.5, 0.5, 0.8)),
+                ..default()
+            },
+            camera: Camera {
+                order: 0,
+                ..default()
+            },
+            ..default()
+        },))
         .insert(MainCamera);
 
     commands.spawn(Camera2dBundle {
@@ -25,7 +35,6 @@ fn setup(mut commands: Commands) {
         },
         camera: Camera {
             order: 1,
-
             ..default()
         },
         ..default()

@@ -23,7 +23,6 @@ impl Plugin for WorldPlugin {
             .add_plugin(RapierDebugRenderPlugin::default())
             .add_plugin(CameraPlugin)
             .add_plugin(PlanePlugin)
-            .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.8).into()))
             .insert_resource(Rand {
                 perlin: Perlin::new(1),
             })
