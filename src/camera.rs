@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{core_pipeline::clear_color::ClearColorConfig, prelude::*};
 
 pub struct CameraPlugin;
 
@@ -18,6 +18,18 @@ fn setup(mut commands: Commands) {
     commands
         .spawn((Camera3dBundle { ..default() },))
         .insert(MainCamera);
+
+    commands.spawn(Camera2dBundle {
+        camera_2d: Camera2d {
+            clear_color: ClearColorConfig::None,
+        },
+        camera: Camera {
+            order: 1,
+
+            ..default()
+        },
+        ..default()
+    });
 }
 
 fn attach_to_follow(

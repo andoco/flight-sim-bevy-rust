@@ -16,6 +16,7 @@ impl Plugin for HudUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(EguiPlugin)
             .add_startup_system(setup)
+            .add_startup_system(setup_indicators)
             .add_system(hud_ui);
     }
 }
@@ -100,5 +101,17 @@ fn hud_ui(
             float_label(ui, "drag", flight.drag, c);
             float_label(ui, "thrust", flight.thrust, c);
         });
+    });
+}
+
+fn setup_indicators(mut commands: Commands) {
+    commands.spawn(SpriteBundle {
+        sprite: Sprite {
+            color: Color::ORANGE,
+            custom_size: Some(Vec2::new(50.0, 2.0)),
+            ..default()
+        },
+        transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+        ..default()
     });
 }
