@@ -3,7 +3,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 use bevy_rapier3d::prelude::*;
-use noise::{BasicMulti, NoiseFn, Perlin};
+use noise::{NoiseFn, Perlin};
 
 use crate::{
     camera::{CameraPlugin, Follow},
@@ -113,6 +113,7 @@ fn generate_infinite_buildings(
         for x in (px - active_block_distance)..(px + active_block_distance) {
             let block_pos = (x, z);
 
+            // Perlin always returns 0 for whole numbers so need to multiply by a coefficient to maker finer grained samplings
             let n = rand.perlin.get([x as f64 * 0.2, z as f64 * 0.2]);
             if n <= 0.0 {
                 continue;
