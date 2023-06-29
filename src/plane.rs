@@ -34,9 +34,11 @@ impl Plugin for PlanePlugin {
 #[derive(Component)]
 pub struct Plane;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct PlaneLimits {
     pub thrust: f32,
+    pub fuselage: Vec3,
+    pub wings: Vec2,
 }
 
 #[derive(Component)]
@@ -60,11 +62,17 @@ fn setup_plane(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let limits = PlaneLimits {
+        thrust: 150.0,
+        fuselage: Vec3::new(2.0, 2.0, 10.0),
+        wings: Vec2::new(15.0, 2.0),
+    };
+
     commands
         .spawn((
             Plane,
             EquationFlightDynamics,
-            PlaneLimits { thrust: 150.0 },
+            limits.clone(),
             PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(
                 world::SPACING as f32 * 0.5,
@@ -82,23 +90,35 @@ fn setup_plane(
             // fuselage
             parent.spawn((
                 PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Box::new(2.0, 2.0, 10.0))),
+                    mesh: meshes.add(Mesh::from(shape::Box::new(
+                        limits.fuselage.x,
+                        limits.fuselage.y,
+                        limits.fuselage.z,
+                    ))),
                     material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
                     ..default()
                 },
                 Friction::new(0.01),
-                Collider::cuboid(1.0, 1.0, 5.0),
+                Collider::cuboid(
+                    limits.fuselage.x * 0.5,
+                    limits.fuselage.y * 0.5,
+                    limits.fuselage.z * 0.5,
+                ),
             ));
 
             // wing
             parent.spawn((
                 PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Box::new(15.0, 0.2, 2.0))),
+                    mesh: meshes.add(Mesh::from(shape::Box::new(
+                        limits.wings.x,
+                        0.2,
+                        limits.wings.y,
+                    ))),
                     material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
                     transform: Transform::from_xyz(0., 1.0, 0.),
                     ..default()
                 },
-                Collider::cuboid(7.5, 0.1, 1.0),
+                Collider::cuboid(limits.wings.x * 0.5, 0.1, limits.wings.y * 0.5),
             ));
         });
 }
@@ -201,6 +221,7 @@ fn compute_flight_dynamics(
             &GlobalTransform,
             &Velocity,
             &ReadMassProperties,
+            &PlaneLimits,
             &mut PlaneFlight,
             &mut ExternalForce,
         ),
@@ -208,8 +229,14 @@ fn compute_flight_dynamics(
     >,
     rapier_config: Res<RapierConfiguration>,
 ) {
-    for (global_tx, velocity, ReadMassProperties(mass_props), mut flight, mut external_force) in
-        query.iter_mut()
+    for (
+        global_tx,
+        velocity,
+        ReadMassProperties(mass_props),
+        limits,
+        mut flight,
+        mut external_force,
+    ) in query.iter_mut()
     {
         let local_velocity = (global_tx.translation() + velocity.linvel) - global_tx.translation();
         let airspeed = -local_velocity.z;
@@ -220,7 +247,7 @@ fn compute_flight_dynamics(
 
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
-        let wing_area = 15.0 * 2.0; // length * width = area m^2
+        let wing_area = limits.wings.x * limits.wings.y;
 
         // Approximate lift coefficients For Cessna 172
         let lift_coefficient = match angle_of_attack.to_degrees() as i32 {
