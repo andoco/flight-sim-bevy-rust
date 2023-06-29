@@ -1,5 +1,23 @@
 Flight simulation using the [Bevy](https://bevyengine.org/) game engine and [Rapier](https://rapier.rs/) physics engine.
 
+## Run
+
+```sh
+cargo run
+```
+
+As WASM website:
+
+```sh
+cargo run --target wasm32-unknown-unknown
+```
+
+or
+
+```sh
+trunk serve --release
+```
+
 ## Flight dynamics
 
 - Roll is rotation around the front-to-back axis, or z-axis.
