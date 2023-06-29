@@ -60,7 +60,7 @@ fn setup_plane(
     commands
         .spawn((
             Plane,
-            LookupTableFlightDynamics,
+            EquationFlightDynamics,
             PlaneLimits { thrust: 150.0 },
             PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(10., 1.1, 0.)),
@@ -181,6 +181,13 @@ fn handle_keyboard_input(
     flight.thrust = flight.thrust.clamp(0., limits.thrust);
 }
 
+fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3) -> f32 {
+    let a1 = Vec3::Y.angle_between(global_tx.forward());
+    let a2 = Vec3::Y.angle_between(velocity.normalize());
+
+    a2 - a1
+}
+
 fn compute_flight_dynamics(
     mut query: Query<
         (
@@ -202,7 +209,7 @@ fn compute_flight_dynamics(
 
         // Angle between the chord line of the wing (front edge to back edge) and the velocity
         // of the air flowing over the wing.
-        let angle_of_attack = global_tx.forward().angle_between(velocity.linvel);
+        let angle_of_attack = angle_of_attack_signed(global_tx, velocity.linvel);
 
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
