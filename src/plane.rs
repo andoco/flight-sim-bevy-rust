@@ -113,6 +113,8 @@ fn setup_plane(
 pub enum PlaneAction {
     RollLeft,
     RollRight,
+    YawLeft,
+    YawRight,
     PitchUp,
     PitchDown,
     ThrustUp,
@@ -131,6 +133,8 @@ fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
                     .insert(KeyCode::Down, PlaneAction::PitchDown)
                     .insert(KeyCode::Left, PlaneAction::RollLeft)
                     .insert(KeyCode::Right, PlaneAction::RollRight)
+                    .insert(KeyCode::Q, PlaneAction::YawLeft)
+                    .insert(KeyCode::W, PlaneAction::YawRight)
                     .insert(KeyCode::A, PlaneAction::ThrustUp)
                     .insert(KeyCode::Z, PlaneAction::ThrustDown)
                     .insert(DualAxis::left_stick(), PlaneAction::PitchRoll)
@@ -160,6 +164,8 @@ fn handle_keyboard_input(
         || action_state.just_released(PlaneAction::PitchDown)
         || action_state.just_released(PlaneAction::RollLeft)
         || action_state.just_released(PlaneAction::RollRight)
+        || action_state.just_released(PlaneAction::YawLeft)
+        || action_state.just_released(PlaneAction::YawRight)
     {
         info!("Clearing torque");
         external_force.torque = Vec3::ZERO;
@@ -177,6 +183,12 @@ fn handle_keyboard_input(
     }
     if action_state.pressed(PlaneAction::RollRight) {
         external_force.torque = global_tx.forward() * 100.;
+    }
+    if action_state.pressed(PlaneAction::YawLeft) {
+        external_force.torque = global_tx.up() * 100.;
+    }
+    if action_state.pressed(PlaneAction::YawRight) {
+        external_force.torque = global_tx.up() * -100.;
     }
     if action_state.pressed(PlaneAction::PitchUp) {
         external_force.torque = global_tx.right() * -100.;
