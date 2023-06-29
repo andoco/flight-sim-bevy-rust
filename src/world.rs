@@ -17,6 +17,7 @@ impl Plugin for WorldPlugin {
             .add_plugin(RapierDebugRenderPlugin::default())
             .add_plugin(CameraPlugin)
             .add_plugin(PlanePlugin)
+            .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.8).into()))
             .add_startup_system(setup_lighting)
             .add_startup_system(setup_ground)
             .add_system(update_block_positions)
