@@ -235,16 +235,6 @@ fn compute_flight_dynamics(
         flight.weight = rapier_config.gravity.y.abs() * mass_props.mass;
         flight.drag = drag;
 
-        info!(
-            "v={}, aoa={}, l={}, d={}, lv={}, airspeed={}",
-            velocity.linvel.length(),
-            angle_of_attack.to_degrees(),
-            lift,
-            drag,
-            local_velocity.length(),
-            airspeed
-        );
-
         external_force.force = global_tx.forward() * flight.thrust;
         external_force.force += -velocity.linvel.normalize_or_zero() * flight.drag;
         external_force.force += global_tx.up() * flight.lift;
