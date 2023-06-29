@@ -4,7 +4,9 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup).add_system(attach_to_follow);
+        app.add_startup_system(setup)
+            .add_system(update_fog)
+            .add_system(attach_to_follow);
     }
 }
 
@@ -38,6 +40,11 @@ fn setup(mut commands: Commands) {
                     Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
                 ),
             },
+            FogControl {
+                visibility: 1500.0,
+                extinction_color: Color::rgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
+                inscattering_color: Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
+            },
         ))
         .insert(MainCamera);
 
@@ -51,6 +58,27 @@ fn setup(mut commands: Commands) {
         },
         ..default()
     });
+}
+
+#[derive(Component)]
+pub struct FogControl {
+    pub visibility: f32,
+    pub extinction_color: Color,
+    pub inscattering_color: Color,
+}
+
+fn update_fog(mut query: Query<(&mut FogSettings, &FogControl), Changed<FogControl>>) {
+    let Ok((mut fog_settings, fog_control)) = query.get_single_mut() else {
+        return;
+    };
+
+    let new_falloff = FogFalloff::from_visibility_colors(
+        fog_control.visibility,
+        fog_control.extinction_color,
+        fog_control.inscattering_color,
+    );
+
+    fog_settings.falloff = new_falloff;
 }
 
 fn attach_to_follow(

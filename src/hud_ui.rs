@@ -10,7 +10,7 @@ use bevy_egui::{
     EguiContexts, EguiPlugin,
 };
 
-use crate::plane::PlaneFlight;
+use crate::{camera::FogControl, plane::PlaneFlight};
 
 pub struct HudUiPlugin;
 
@@ -19,7 +19,7 @@ impl Plugin for HudUiPlugin {
         app.add_plugin(EguiPlugin)
             .add_startup_system(setup)
             .add_startup_system(setup_indicators)
-            .add_system(hud_ui)
+            .add_system(update_hud_ui)
             .add_system(update_hud_model.run_if(on_timer(Duration::from_millis(100))));
     }
 }
@@ -90,7 +90,11 @@ fn update_hud_model(
     model.weight = flight.weight;
 }
 
-fn hud_ui(mut contexts: EguiContexts, model_query: Query<&HudModel>) {
+fn update_hud_ui(
+    mut contexts: EguiContexts,
+    model_query: Query<&HudModel>,
+    mut fog_control: Query<&mut FogControl>,
+) {
     let Ok(model) = model_query.get_single() else {
         return;
     };
@@ -135,6 +139,12 @@ fn hud_ui(mut contexts: EguiContexts, model_query: Query<&HudModel>) {
             float_label(ui, "drag", model.drag, c);
             float_label(ui, "thrust", model.thrust, c);
         });
+
+        if let Ok(mut fog_control) = fog_control.get_single_mut() {
+            ui.add(
+                egui::Slider::new(&mut fog_control.visibility, 0.0..=5000.0).text("fog visibility"),
+            );
+        }
     });
 }
 
