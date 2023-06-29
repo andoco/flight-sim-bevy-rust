@@ -1,4 +1,5 @@
 use bevy::{
+    pbr::CascadeShadowConfigBuilder,
     prelude::*,
     utils::{HashMap, HashSet},
 };
@@ -34,12 +35,29 @@ impl Plugin for WorldPlugin {
 }
 
 fn setup_lighting(mut commands: Commands) {
+    // Configure a properly scaled cascade shadow map for this scene (defaults are too large, mesh units are in km)
+    let cascade_shadow_config = CascadeShadowConfigBuilder {
+        first_cascade_far_bound: 0.3,
+        maximum_distance: 3.0,
+        ..default()
+    }
+    .build();
+
+    // Sun
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
+            color: Color::rgb(0.98, 0.95, 0.82),
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_rotation(Quat::from_rotation_x(-90_f32.to_radians())),
+
+        transform: Transform::from_rotation(Quat::from_euler(
+            EulerRot::YXZ,
+            90_f32.to_radians(),
+            0_f32.to_radians(),
+            0_f32.to_radians(),
+        )),
+        cascade_shadow_config,
         ..default()
     });
 }
@@ -64,6 +82,7 @@ fn setup_ground(
 
 pub const SPACING: i32 = 40;
 const MAX_SIDE: f32 = 10.0;
+const ACTIVE_BLOCK_DISTANCE: i32 = 20;
 
 #[derive(Component)]
 pub struct BlockPos(pub i32, pub i32);
@@ -98,8 +117,6 @@ fn generate_infinite_buildings(
         return;
     };
 
-    let active_block_distance = 10;
-
     let px = *px;
     let pz = *pz;
 
@@ -108,8 +125,8 @@ fn generate_infinite_buildings(
     let mut num_misses = 0;
     let mut num_hits = 0;
 
-    for z in (pz - active_block_distance)..(pz + active_block_distance) {
-        for x in (px - active_block_distance)..(px + active_block_distance) {
+    for z in (pz - ACTIVE_BLOCK_DISTANCE)..(pz + ACTIVE_BLOCK_DISTANCE) {
+        for x in (px - ACTIVE_BLOCK_DISTANCE)..(px + ACTIVE_BLOCK_DISTANCE) {
             let block_pos = (x, z);
 
             // Perlin always returns 0 for whole numbers so need to multiply by a coefficient to maker finer grained samplings
