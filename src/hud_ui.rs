@@ -1,14 +1,16 @@
+use std::time::Duration;
+
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
+    time::common_conditions::on_timer,
 };
 use bevy_egui::{
     egui::{self, Color32, FontDefinitions, RichText, Ui},
     EguiContexts, EguiPlugin,
 };
-use bevy_rapier3d::prelude::Velocity;
 
-use crate::plane::{Plane, PlaneFlight};
+use crate::plane::PlaneFlight;
 
 pub struct HudUiPlugin;
 
@@ -17,11 +19,24 @@ impl Plugin for HudUiPlugin {
         app.add_plugin(EguiPlugin)
             .add_startup_system(setup)
             .add_startup_system(setup_indicators)
-            .add_system(hud_ui);
+            .add_system(hud_ui)
+            .add_system(update_hud_model.run_if(on_timer(Duration::from_millis(100))));
     }
 }
 
-fn setup(mut contexts: EguiContexts) {
+#[derive(Component, Default)]
+struct HudModel {
+    fps: f32,
+    altitude: f32,
+    thrust: f32,
+    angle_of_attack: f32,
+    airspeed: f32,
+    lift: f32,
+    weight: f32,
+    drag: f32,
+}
+
+fn setup(mut commands: Commands, mut contexts: EguiContexts) {
     let ctx = contexts.ctx_mut();
 
     let mut fonts = FontDefinitions::default();
@@ -44,14 +59,39 @@ fn setup(mut contexts: EguiContexts) {
         .push("FiraMono-Medium".to_owned());
 
     ctx.set_fonts(fonts);
+
+    commands.spawn(HudModel::default());
 }
 
-fn hud_ui(
-    mut contexts: EguiContexts,
-    plane_query: Query<(&GlobalTransform, &Velocity, &PlaneFlight), With<Plane>>,
+fn update_hud_model(
+    plane_query: Query<(&GlobalTransform, &PlaneFlight)>,
+    mut model_query: Query<&mut HudModel>,
     diagnostics: Res<Diagnostics>,
 ) {
-    let Ok((global_tx, velocity, flight)) = plane_query.get_single() else {
+    let Ok((global_tx,  flight)) = plane_query.get_single() else {
+        return;
+    };
+
+    let Ok(mut model) = model_query.get_single_mut() else {
+        return;
+    };
+
+    model.fps = diagnostics
+        .get_measurement(FrameTimeDiagnosticsPlugin::FPS)
+        .map(|m| m.value)
+        .unwrap_or(-1.0) as f32;
+
+    model.altitude = global_tx.translation().y;
+    model.airspeed = flight.airspeed;
+    model.angle_of_attack = flight.angle_of_attack;
+    model.drag = flight.drag;
+    model.lift = flight.lift;
+    model.thrust = flight.thrust;
+    model.weight = flight.weight;
+}
+
+fn hud_ui(mut contexts: EguiContexts, model_query: Query<&HudModel>) {
+    let Ok(model) = model_query.get_single() else {
         return;
     };
 
@@ -80,26 +120,20 @@ fn hud_ui(
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
         let c = Color32::WHITE;
 
-        let lift_color = match flight.lift {
-            l if l < flight.weight => Color32::RED,
+        let lift_color = match model.lift {
+            l if l < model.weight => Color32::RED,
             _ => Color32::GREEN,
         };
 
-        let fps = diagnostics
-            .get_measurement(FrameTimeDiagnosticsPlugin::FPS)
-            .map(|m| m.value)
-            .unwrap_or(-1.0);
-
         ui.horizontal(|ui| {
-            float_label(ui, "fps", fps as f32, c);
-            float_label(ui, "altitude", global_tx.translation().y, c);
-            float_label(ui, "velocity", velocity.linvel.length(), c);
-            float_label(ui, "airspeed", flight.airspeed, c);
-            float_label(ui, "aoa", flight.angle_of_attack.to_degrees(), c);
-            float_label(ui, "weight", flight.weight, c);
-            float_label(ui, "lift", flight.lift, lift_color);
-            float_label(ui, "drag", flight.drag, c);
-            float_label(ui, "thrust", flight.thrust, c);
+            float_label(ui, "fps", model.fps, c);
+            float_label(ui, "altitude", model.altitude, c);
+            float_label(ui, "airspeed", model.airspeed, c);
+            float_label(ui, "aoa", model.angle_of_attack.to_degrees(), c);
+            float_label(ui, "weight", model.weight, c);
+            float_label(ui, "lift", model.lift, lift_color);
+            float_label(ui, "drag", model.drag, c);
+            float_label(ui, "thrust", model.thrust, c);
         });
     });
 }
