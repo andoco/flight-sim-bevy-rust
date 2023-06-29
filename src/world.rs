@@ -3,6 +3,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 use bevy_rapier3d::prelude::*;
+use noise::{BasicMulti, NoiseFn, Perlin};
 
 use crate::{
     camera::{CameraPlugin, Follow},
@@ -11,6 +12,11 @@ use crate::{
 
 pub struct WorldPlugin;
 
+#[derive(Resource)]
+struct Rand {
+    perlin: Perlin,
+}
+
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
@@ -18,6 +24,9 @@ impl Plugin for WorldPlugin {
             .add_plugin(CameraPlugin)
             .add_plugin(PlanePlugin)
             .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.8).into()))
+            .insert_resource(Rand {
+                perlin: Perlin::new(1),
+            })
             .add_startup_system(setup_lighting)
             .add_startup_system(setup_ground)
             .add_system(update_block_positions)
@@ -54,7 +63,8 @@ fn setup_ground(
         });
 }
 
-const SPACING: i32 = 20;
+pub const SPACING: i32 = 40;
+const MAX_SIDE: f32 = 10.0;
 
 #[derive(Component)]
 pub struct BlockPos(pub i32, pub i32);
@@ -83,12 +93,13 @@ fn generate_infinite_buildings(
     mut block_entities: Local<HashMap<(i32, i32), Entity>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    rand: Res<Rand>,
 ) {
     let Ok(BlockPos(px, pz)) = query.get_single() else {
         return;
     };
 
-    let active_block_distance = 5;
+    let active_block_distance = 10;
 
     let px = *px;
     let pz = *pz;
@@ -102,6 +113,11 @@ fn generate_infinite_buildings(
         for x in (px - active_block_distance)..(px + active_block_distance) {
             let block_pos = (x, z);
 
+            let n = rand.perlin.get([x as f64 * 0.2, z as f64 * 0.2]);
+            if n <= 0.0 {
+                continue;
+            }
+
             active_block_positions.insert(block_pos);
 
             if block_positions.contains(&block_pos) {
@@ -109,17 +125,22 @@ fn generate_infinite_buildings(
             } else {
                 num_misses += 1;
 
-                let building_pos = Vec3::new((x * SPACING) as f32, 0.5, (z * SPACING) as f32);
+                let height = (100.0 * n) as f32;
+                info!("x={}, z={}, n={}", x, z, n);
+                let side = MAX_SIDE;
+
+                let building_pos =
+                    Vec3::new((x * SPACING) as f32, height * 0.5, (z * SPACING) as f32);
 
                 let building_entity = commands
                     .spawn(PbrBundle {
-                        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+                        mesh: meshes.add(Mesh::from(shape::Box::new(side, height, side))),
                         material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
                         transform: Transform::from_translation(building_pos),
                         ..default()
                     })
                     .insert(RigidBody::Fixed)
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5))
+                    .insert(Collider::cuboid(side / 2.0, height / 2.0, side / 2.0))
                     .id();
 
                 block_entities.insert(block_pos, building_entity);

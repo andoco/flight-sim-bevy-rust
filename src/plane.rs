@@ -8,7 +8,10 @@ use leafwing_input_manager::{
     Actionlike, InputManagerBundle,
 };
 
-use crate::{camera, world::BlockPos};
+use crate::{
+    camera,
+    world::{self, BlockPos},
+};
 
 pub struct PlanePlugin;
 
@@ -63,7 +66,11 @@ fn setup_plane(
             EquationFlightDynamics,
             PlaneLimits { thrust: 150.0 },
             PlaneFlight::default(),
-            SpatialBundle::from_transform(Transform::from_xyz(10., 1.1, 0.)),
+            SpatialBundle::from_transform(Transform::from_xyz(
+                world::SPACING as f32 * 0.5,
+                1.1,
+                0.,
+            )),
             RigidBody::Dynamic,
             Velocity::zero(),
             ExternalForce::default(),
