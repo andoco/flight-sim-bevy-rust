@@ -20,14 +20,7 @@ impl Plugin for PlanePlugin {
         app.add_plugin(InputManagerPlugin::<PlaneAction>::default())
             .add_startup_system(setup_plane)
             .add_system(add_plane_input)
-            .add_systems(
-                (
-                    handle_keyboard_input,
-                    compute_flight_dynamics,
-                    compute_lookup_table_flight_dynamics,
-                )
-                    .chain(),
-            );
+            .add_systems((handle_keyboard_input, compute_flight_dynamics).chain());
     }
 }
 
@@ -40,12 +33,6 @@ pub struct PlaneLimits {
     pub fuselage: Vec3,
     pub wings: Vec2,
 }
-
-#[derive(Component)]
-pub struct EquationFlightDynamics;
-
-#[derive(Component)]
-pub struct LookupTableFlightDynamics;
 
 #[derive(Component, Default)]
 pub struct PlaneFlight {
@@ -71,7 +58,6 @@ fn setup_plane(
     commands
         .spawn((
             Plane,
-            EquationFlightDynamics,
             limits.clone(),
             PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(
@@ -225,7 +211,7 @@ fn compute_flight_dynamics(
             &mut PlaneFlight,
             &mut ExternalForce,
         ),
-        With<EquationFlightDynamics>,
+        With<Plane>,
     >,
     rapier_config: Res<RapierConfiguration>,
 ) {
@@ -249,14 +235,19 @@ fn compute_flight_dynamics(
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
         let wing_area = limits.wings.x * limits.wings.y;
 
-        // Approximate lift coefficients For Cessna 172
-        let lift_coefficient = match angle_of_attack.to_degrees() as i32 {
-            0..=5 => 0.35,
-            6..=10 => 1.2,
-            11..=14 => 1.4,
-            15..=18 => 1.2,
-            _ => 0.0,
-        };
+        let lift_coefficient_curve = Linear::builder()
+            .elements([0.0, 0.0, 0.35, 1.4, 0.8, 0.0])
+            .knots([-90.0, -5.0, 0.0, 10.0, 15.0, 90.0])
+            .build()
+            .unwrap();
+
+        let lift_coefficient_samples: Vec<_> = lift_coefficient_curve.take(180).collect();
+
+        let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
+
+        let lift_coefficient = lift_coefficient_samples
+            .get(lift_coefficient_index)
+            .unwrap_or(&0.0);
 
         let lift = lift_coefficient * dynamic_pressure * wing_area;
 
@@ -268,70 +259,6 @@ fn compute_flight_dynamics(
         flight.lift = lift;
         flight.weight = rapier_config.gravity.y.abs() * mass_props.mass;
         flight.drag = drag;
-
-        external_force.force = global_tx.forward() * flight.thrust;
-        external_force.force += -velocity.linvel.normalize_or_zero() * flight.drag;
-        external_force.force += global_tx.up() * flight.lift;
-    }
-}
-
-fn compute_lookup_table_flight_dynamics(
-    mut query: Query<
-        (
-            &GlobalTransform,
-            &Velocity,
-            &ReadMassProperties,
-            &mut PlaneFlight,
-            &mut ExternalForce,
-        ),
-        With<LookupTableFlightDynamics>,
-    >,
-    rapier_config: Res<RapierConfiguration>,
-) {
-    for (global_tx, velocity, ReadMassProperties(mass_props), mut flight, mut external_force) in
-        query.iter_mut()
-    {
-        let local_velocity = (global_tx.translation() + velocity.linvel) - global_tx.translation();
-        let airspeed = -local_velocity.z;
-
-        // Angle between the chord line of the wing (front edge to back edge) and the velocity
-        // of the air flowing over the wing.
-        let angle_of_attack = global_tx.forward().angle_between(velocity.linvel);
-
-        let air_density = 1.225; // 1.225 kg/m^3 at sea level
-        let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
-        let wing_area = 15.0 * 2.0; // length * width = area m^2
-
-        let lin = Linear::builder()
-            .elements([0.35, 0.7, 0.0])
-            .knots([0.0, 0.4, 1.0])
-            .build()
-            .unwrap();
-
-        let samples: Vec<_> = lin.take(10).collect();
-
-        let lift_coefficient = samples
-            .get((angle_of_attack.to_degrees() / 9.0) as usize)
-            .unwrap_or(&0.0);
-
-        let weight = rapier_config.gravity.y.abs() * mass_props.mass;
-
-        let lift = (lift_coefficient * dynamic_pressure * wing_area).min(weight * 2.0);
-
-        let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
-        let drag = drag_coefficient * dynamic_pressure * wing_area;
-
-        flight.angle_of_attack = angle_of_attack;
-        flight.airspeed = airspeed;
-        flight.lift = lift;
-        flight.weight = weight;
-        flight.drag = drag;
-
-        info!(
-            "aoa={}, lc={}",
-            angle_of_attack.to_degrees(),
-            lift_coefficient,
-        );
 
         external_force.force = global_tx.forward() * flight.thrust;
         external_force.force += -velocity.linvel.normalize_or_zero() * flight.drag;
