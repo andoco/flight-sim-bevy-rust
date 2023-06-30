@@ -147,6 +147,7 @@ pub enum PlaneAction {
     // View
     FollowBehind,
     FollowAbove,
+    FollowInside,
 }
 
 fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
@@ -182,6 +183,7 @@ fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
                     )
                     .insert(GamepadButtonType::DPadDown, PlaneAction::FollowBehind)
                     .insert(GamepadButtonType::DPadUp, PlaneAction::FollowAbove)
+                    .insert(GamepadButtonType::DPadLeft, PlaneAction::FollowInside)
                     .build(),
             });
     }
@@ -310,6 +312,11 @@ fn handle_gamepad_input(
         commands
             .entity(entity)
             .insert(Follow(camera::FollowKind::Behind));
+    }
+    if action_state.just_pressed(PlaneAction::FollowInside) {
+        commands
+            .entity(entity)
+            .insert(Follow(camera::FollowKind::Inside));
     }
 }
 

@@ -19,6 +19,7 @@ pub struct Follow(pub FollowKind);
 pub enum FollowKind {
     Behind,
     Above,
+    Inside,
 }
 
 fn setup(mut commands: Commands) {
@@ -110,6 +111,11 @@ fn attach_to_follow(
             info!("Follow above");
             camera_tx.translation = Vec3::new(0., 150.0, 0.);
             camera_tx.rotation = Quat::from_rotation_x(-90_f32.to_radians());
+        }
+        FollowKind::Inside => {
+            info!("Follow inside");
+            camera_tx.translation = Vec3::new(0., 0., 0.);
+            camera_tx.rotation = Quat::default();
         }
     };
 }
