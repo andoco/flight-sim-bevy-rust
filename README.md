@@ -1,3 +1,5 @@
+[![Continuous integration](https://github.com/andoco/flight-sim-bevy-rust/actions/workflows/continuous_integration.yml/badge.svg)](https://github.com/andoco/flight-sim-bevy-rust/actions/workflows/continuous_integration.yml)
+
 Flight simulation using the [Bevy](https://bevyengine.org/) game engine and [Rapier](https://rapier.rs/) physics engine.
 
 ## Run
