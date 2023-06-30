@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use enterpolation::{linear::Linear, Curve};
 use leafwing_input_manager::{
-    prelude::{ActionState, DualAxis, InputManagerPlugin, InputMap},
+    prelude::{ActionState, InputManagerPlugin, InputMap, SingleAxis},
     Actionlike, InputManagerBundle,
 };
 
@@ -20,7 +20,14 @@ impl Plugin for PlanePlugin {
         app.add_plugin(InputManagerPlugin::<PlaneAction>::default())
             .add_startup_system(setup_plane)
             .add_system(add_plane_input)
-            .add_systems((handle_keyboard_input, compute_flight_dynamics).chain());
+            .add_systems(
+                (
+                    handle_keyboard_input,
+                    handle_gamepad_input,
+                    compute_flight_dynamics,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -121,6 +128,7 @@ fn setup_plane(
 
 #[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub enum PlaneAction {
+    // Keyboard
     RollLeft,
     RollRight,
     YawLeft,
@@ -129,7 +137,12 @@ pub enum PlaneAction {
     PitchDown,
     ThrustUp,
     ThrustDown,
-    PitchRoll,
+
+    // Gamepad
+    Pitch,
+    Roll,
+    Throttle,
+    Rudder,
 }
 
 fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
@@ -147,7 +160,22 @@ fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
                     .insert(KeyCode::W, PlaneAction::YawRight)
                     .insert(KeyCode::A, PlaneAction::ThrustUp)
                     .insert(KeyCode::Z, PlaneAction::ThrustDown)
-                    .insert(DualAxis::left_stick(), PlaneAction::PitchRoll)
+                    .insert(
+                        SingleAxis::symmetric(GamepadAxisType::LeftStickY, 0.25),
+                        PlaneAction::Pitch,
+                    )
+                    .insert(
+                        SingleAxis::symmetric(GamepadAxisType::LeftStickX, 0.25),
+                        PlaneAction::Roll,
+                    )
+                    .insert(
+                        SingleAxis::symmetric(GamepadAxisType::RightStickY, 0.25),
+                        PlaneAction::Throttle,
+                    )
+                    .insert(
+                        SingleAxis::symmetric(GamepadAxisType::RightStickX, 0.25),
+                        PlaneAction::Rudder,
+                    )
                     .build(),
             });
     }
@@ -214,6 +242,55 @@ fn handle_keyboard_input(
     }
 
     flight.thrust = flight.thrust.clamp(0., limits.thrust);
+}
+
+fn handle_gamepad_input(
+    mut query: Query<
+        (
+            &ActionState<PlaneAction>,
+            &GlobalTransform,
+            &PlaneLimits,
+            &mut ExternalForce,
+            &mut PlaneFlight,
+        ),
+        With<Plane>,
+    >,
+    time: Res<Time>,
+) {
+    let Ok((action_state, global_tx, limits, mut external_force, mut flight)) = query.get_single_mut() else {
+        return
+    };
+
+    if action_state.just_released(PlaneAction::Pitch)
+        || action_state.just_released(PlaneAction::Roll)
+        || action_state.just_released(PlaneAction::Rudder)
+    {
+        info!("Resetting torque");
+        external_force.torque = Vec3::ZERO;
+    }
+
+    if action_state.pressed(PlaneAction::Pitch) {
+        external_force.torque += global_tx.right()
+            * -action_state.clamped_value(PlaneAction::Pitch)
+            * time.delta_seconds()
+            * 10.0;
+    }
+    if action_state.pressed(PlaneAction::Roll) {
+        external_force.torque += global_tx.forward()
+            * action_state.clamped_value(PlaneAction::Roll)
+            * time.delta_seconds()
+            * 20.0;
+    }
+    if action_state.pressed(PlaneAction::Throttle) {
+        flight.thrust +=
+            action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;
+    }
+    if action_state.pressed(PlaneAction::Rudder) {
+        external_force.torque += global_tx.up()
+            * -action_state.clamped_value(PlaneAction::Rudder)
+            * time.delta_seconds()
+            * 10.0;
+    }
 }
 
 fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3) -> f32 {
