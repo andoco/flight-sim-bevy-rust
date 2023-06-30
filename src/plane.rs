@@ -9,7 +9,7 @@ use leafwing_input_manager::{
 };
 
 use crate::{
-    camera,
+    camera::{self, Follow},
     world::{self, BlockPos},
 };
 
@@ -86,7 +86,7 @@ fn setup_plane(
             Velocity::zero(),
             ExternalForce::default(),
             ReadMassProperties::default(),
-            camera::Follow,
+            camera::Follow(camera::FollowKind::Behind),
             BlockPos(0, 0),
         ))
         .with_children(|parent| {
@@ -143,6 +143,10 @@ pub enum PlaneAction {
     Roll,
     Throttle,
     Rudder,
+
+    // View
+    FollowBehind,
+    FollowAbove,
 }
 
 fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
@@ -176,6 +180,8 @@ fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
                         SingleAxis::symmetric(GamepadAxisType::RightStickX, 0.25),
                         PlaneAction::Rudder,
                     )
+                    .insert(GamepadButtonType::DPadDown, PlaneAction::FollowBehind)
+                    .insert(GamepadButtonType::DPadUp, PlaneAction::FollowAbove)
                     .build(),
             });
     }
@@ -245,8 +251,10 @@ fn handle_keyboard_input(
 }
 
 fn handle_gamepad_input(
+    mut commands: Commands,
     mut query: Query<
         (
+            Entity,
             &ActionState<PlaneAction>,
             &GlobalTransform,
             &PlaneLimits,
@@ -257,7 +265,7 @@ fn handle_gamepad_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((action_state, global_tx, limits, mut external_force, mut flight)) = query.get_single_mut() else {
+    let Ok((entity, action_state, global_tx, limits, mut external_force, mut flight)) = query.get_single_mut() else {
         return
     };
 
@@ -284,12 +292,24 @@ fn handle_gamepad_input(
     if action_state.pressed(PlaneAction::Throttle) {
         flight.thrust +=
             action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;
+        flight.thrust = flight.thrust.clamp(0., limits.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
         external_force.torque += global_tx.up()
             * -action_state.clamped_value(PlaneAction::Rudder)
             * time.delta_seconds()
             * 10.0;
+    }
+
+    if action_state.just_pressed(PlaneAction::FollowAbove) {
+        commands
+            .entity(entity)
+            .insert(Follow(camera::FollowKind::Above));
+    }
+    if action_state.just_pressed(PlaneAction::FollowBehind) {
+        commands
+            .entity(entity)
+            .insert(Follow(camera::FollowKind::Behind));
     }
 }
 

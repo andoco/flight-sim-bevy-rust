@@ -14,7 +14,12 @@ impl Plugin for CameraPlugin {
 pub struct MainCamera;
 
 #[derive(Component)]
-pub struct Follow;
+pub struct Follow(pub FollowKind);
+
+pub enum FollowKind {
+    Behind,
+    Above,
+}
 
 fn setup(mut commands: Commands) {
     commands
@@ -83,10 +88,10 @@ fn update_fog(mut query: Query<(&mut FogSettings, &FogControl), Changed<FogContr
 
 fn attach_to_follow(
     mut commands: Commands,
-    follow_query: Query<Entity, Added<Follow>>,
+    follow_query: Query<(Entity, &Follow), Changed<Follow>>,
     mut camera_query: Query<(Entity, &mut Transform), With<MainCamera>>,
 ) {
-    let Ok(follow_entity) = follow_query.get_single() else {
+    let Ok((follow_entity, Follow(follow_kind))) = follow_query.get_single() else {
         return;
     };
     let Ok((camera_entity, mut camera_tx)) = camera_query.get_single_mut() else {
@@ -95,5 +100,16 @@ fn attach_to_follow(
 
     commands.entity(camera_entity).set_parent(follow_entity);
 
-    camera_tx.translation = Vec3::new(0., 5.0, 20.);
+    match follow_kind {
+        FollowKind::Behind => {
+            info!("Follow behind");
+            camera_tx.translation = Vec3::new(0., 5.0, 20.);
+            camera_tx.rotation = Quat::default();
+        }
+        FollowKind::Above => {
+            info!("Follow above");
+            camera_tx.translation = Vec3::new(0., 150.0, 0.);
+            camera_tx.rotation = Quat::from_rotation_x(-90_f32.to_radians());
+        }
+    };
 }
