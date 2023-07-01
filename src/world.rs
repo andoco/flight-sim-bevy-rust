@@ -21,7 +21,6 @@ struct Rand {
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-            .add_plugin(RapierDebugRenderPlugin::default())
             .add_plugin(CameraPlugin)
             .add_plugin(PlanePlugin)
             .insert_resource(Rand {
