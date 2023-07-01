@@ -34,6 +34,7 @@ struct HudModel {
     lift: f32,
     weight: f32,
     drag: f32,
+    show_environment: bool,
 }
 
 fn setup(mut commands: Commands, mut contexts: EguiContexts) {
@@ -92,11 +93,11 @@ fn update_hud_model(
 
 fn update_hud_ui(
     mut contexts: EguiContexts,
-    model_query: Query<&HudModel>,
+    mut model_query: Query<&mut HudModel>,
     mut fog_control: Query<&mut FogControl>,
     mut sun_control: Query<&mut SunControl>,
 ) {
-    let Ok(model) = model_query.get_single() else {
+    let Ok(mut model) = model_query.get_single_mut() else {
         return;
     };
 
@@ -122,26 +123,9 @@ fn update_hud_ui(
         );
     };
 
-    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-        let c = Color32::WHITE;
-
-        let lift_color = match model.lift {
-            l if l < model.weight => Color32::RED,
-            _ => Color32::GREEN,
-        };
-
-        ui.horizontal(|ui| {
-            float_label(ui, "fps", model.fps, c);
-            float_label(ui, "altitude", model.altitude, c);
-            float_label(ui, "airspeed", model.airspeed, c);
-            float_label(ui, "aoa", model.angle_of_attack.to_degrees(), c);
-            float_label(ui, "weight", model.weight, c);
-            float_label(ui, "lift", model.lift, lift_color);
-            float_label(ui, "drag", model.drag, c);
-            float_label(ui, "thrust", model.thrust, c);
-        });
-
-        ui.horizontal(|ui| {
+    egui::Window::new("Environment")
+        .open(&mut model.show_environment)
+        .show(ctx, |ui| {
             if let Ok(mut fog_control) = fog_control.get_single_mut() {
                 ui.group(|ui| {
                     ui.label("Fog");
@@ -163,6 +147,29 @@ fn update_hud_ui(
 
                 sun_control.rotation = Quat::from_euler(EulerRot::YXZ, y, x, z);
             }
+        });
+
+    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        let c = Color32::WHITE;
+
+        let lift_color = match model.lift {
+            l if l < model.weight => Color32::RED,
+            _ => Color32::GREEN,
+        };
+
+        ui.horizontal(|ui| {
+            if ui.button("Environment").clicked() {
+                model.show_environment = !model.show_environment;
+            }
+
+            float_label(ui, "fps", model.fps, c);
+            float_label(ui, "altitude", model.altitude, c);
+            float_label(ui, "airspeed", model.airspeed, c);
+            float_label(ui, "aoa", model.angle_of_attack.to_degrees(), c);
+            float_label(ui, "weight", model.weight, c);
+            float_label(ui, "lift", model.lift, lift_color);
+            float_label(ui, "drag", model.drag, c);
+            float_label(ui, "thrust", model.thrust, c);
         });
     });
 }
