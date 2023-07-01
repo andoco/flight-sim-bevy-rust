@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 approx = "0.5.1"
-bevy = { version = "0.10.1", features = ["bevy_pbr"] }
+bevy = { version = "0.10.1", features = [] }
 bevy_egui = "0.20.3"
 bevy_rapier3d = "0.21.0"
 enterpolation = "0.2.1"
