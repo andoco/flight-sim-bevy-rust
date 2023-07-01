@@ -52,6 +52,9 @@ pub struct PlaneFlight {
     pub drag: f32,
 }
 
+#[derive(Component)]
+pub struct Airfoil;
+
 fn setup_plane(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -111,6 +114,7 @@ fn setup_plane(
 
             // wing
             parent.spawn((
+                Airfoil,
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
                         limits.wings.x,
@@ -123,6 +127,57 @@ fn setup_plane(
                 },
                 Collider::cuboid(limits.wings.x * 0.5, 0.1, limits.wings.y * 0.5),
             ));
+
+            // vertical tail fin
+            let tail_width = 0.2;
+            let tail_height = limits.fuselage.y;
+            let tail_length = limits.fuselage.y;
+
+            parent.spawn((
+                Airfoil,
+                PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Box::new(
+                        tail_width,
+                        tail_height,
+                        tail_length,
+                    ))),
+                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                    transform: Transform::from_xyz(
+                        0.,
+                        limits.fuselage.y * 0.5 + tail_height * 0.5,
+                        limits.fuselage.z * 0.5 - tail_length * 0.5,
+                    ),
+                    ..default()
+                },
+                Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
+            ));
+
+            // horizontal tail wings
+            for offset in [-1.0, 1.0] {
+                // tail
+                let tail_width = limits.fuselage.y;
+                let tail_height = 0.2;
+                let tail_length = limits.fuselage.y;
+
+                parent.spawn((
+                    Airfoil,
+                    PbrBundle {
+                        mesh: meshes.add(Mesh::from(shape::Box::new(
+                            tail_width,
+                            tail_height,
+                            tail_length,
+                        ))),
+                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                        transform: Transform::from_xyz(
+                            (limits.fuselage.x * 0.5 + tail_width * 0.5) * offset,
+                            0.0,
+                            limits.fuselage.z * 0.5 - tail_length * 0.5,
+                        ),
+                        ..default()
+                    },
+                    Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
+                ));
+            }
         });
 }
 
