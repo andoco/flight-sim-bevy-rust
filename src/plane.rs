@@ -24,6 +24,7 @@ impl Plugin for PlanePlugin {
                 (
                     handle_keyboard_input,
                     handle_gamepad_input,
+                    update_airfoils_rotations,
                     compute_flight_dynamics,
                 )
                     .chain(),
@@ -42,10 +43,17 @@ pub struct PlaneLimits {
     pub lift_coefficient_samples: Vec<f32>,
 }
 
+#[derive(Component, Default)]
 pub struct PlaneControl {
     pub ailerons: f32,
     pub elevators: f32,
     pub rudder: f32,
+}
+
+impl PlaneControl {
+    fn clear(&mut self) {
+        *self = Default::default();
+    }
 }
 
 #[derive(Component, Default)]
@@ -95,6 +103,7 @@ fn setup_plane(
     commands
         .spawn((
             Plane,
+            PlaneControl::default(),
             limits.clone(),
             PlaneFlight::default(),
             SpatialBundle::from_transform(Transform::from_xyz(
@@ -290,12 +299,13 @@ fn handle_keyboard_input(
             &PlaneLimits,
             &mut ExternalForce,
             &mut PlaneFlight,
+            &mut PlaneControl,
         ),
         With<Plane>,
     >,
     time: Res<Time>,
 ) {
-    let Ok((action_state, global_tx, limits, mut external_force, mut flight)) = query.get_single_mut() else {
+    let Ok((action_state, global_tx, limits, mut external_force, mut flight, mut control)) = query.get_single_mut() else {
         return
     };
 
@@ -306,8 +316,9 @@ fn handle_keyboard_input(
         || action_state.just_released(PlaneAction::YawLeft)
         || action_state.just_released(PlaneAction::YawRight)
     {
-        info!("Clearing torque");
+        info!("Clearing torque and controls");
         external_force.torque = Vec3::ZERO;
+        control.clear();
     }
 
     if action_state.just_released(PlaneAction::ThrustUp)
@@ -331,9 +342,11 @@ fn handle_keyboard_input(
     }
     if action_state.pressed(PlaneAction::PitchUp) {
         external_force.torque = global_tx.right() * -100.;
+        control.elevators += 5_f32.to_radians() * time.delta_seconds();
     }
     if action_state.pressed(PlaneAction::PitchDown) {
         external_force.torque = global_tx.right() * 100.;
+        control.elevators -= 5_f32.to_radians() * time.delta_seconds();
     }
     if action_state.pressed(PlaneAction::ThrustUp) {
         flight.thrust += 10.0 * time.delta_seconds();
@@ -341,6 +354,10 @@ fn handle_keyboard_input(
     if action_state.pressed(PlaneAction::ThrustDown) {
         flight.thrust -= 10.0 * time.delta_seconds();
     }
+
+    control.elevators = control
+        .elevators
+        .clamp(-45_f32.to_radians(), 45_f32.to_radians());
 
     flight.thrust = flight.thrust.clamp(0., limits.thrust);
 }
@@ -418,6 +435,24 @@ fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3) -> f32 {
     let a2 = Vec3::Y.angle_between(velocity.normalize());
 
     a2 - a1
+}
+
+fn update_airfoils_rotations(
+    query: Query<(&PlaneControl, &Children)>,
+    mut airfoil_query: Query<(&Airfoil, &mut Transform)>,
+) {
+    for (control, children) in query.iter() {
+        for child in children.iter() {
+            if let Ok((airfoil, mut airfoil_tx)) = airfoil_query.get_mut(*child) {
+                match airfoil.position {
+                    AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
+                        airfoil_tx.rotation = Quat::from_rotation_x(control.elevators);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
 }
 
 fn compute_flight_dynamics(
