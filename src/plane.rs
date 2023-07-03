@@ -42,6 +42,12 @@ pub struct PlaneLimits {
     pub lift_coefficient_samples: Vec<f32>,
 }
 
+pub struct PlaneControl {
+    pub ailerons: f32,
+    pub elevators: f32,
+    pub rudder: f32,
+}
+
 #[derive(Component, Default)]
 pub struct PlaneFlight {
     pub thrust: f32,
@@ -52,8 +58,19 @@ pub struct PlaneFlight {
     pub drag: f32,
 }
 
+pub enum AirfoilPosition {
+    Wings,
+    HorizontalTailLeft,
+    HorizontalTailRight,
+    VerticalTail,
+}
+
 #[derive(Component)]
-pub struct Airfoil;
+pub struct Airfoil {
+    pub position: AirfoilPosition,
+    pub area: f32,
+    pub lift_coefficient_samples: Vec<f32>,
+}
 
 fn setup_plane(
     mut commands: Commands,
@@ -72,7 +89,7 @@ fn setup_plane(
         thrust: 150.0,
         fuselage: Vec3::new(2.0, 2.0, 10.0),
         wings: Vec2::new(15.0, 2.0),
-        lift_coefficient_samples,
+        lift_coefficient_samples: lift_coefficient_samples.clone(),
     };
 
     commands
@@ -114,7 +131,11 @@ fn setup_plane(
 
             // wing
             parent.spawn((
-                Airfoil,
+                Airfoil {
+                    position: AirfoilPosition::Wings,
+                    area: limits.wings.x * limits.wings.y,
+                    lift_coefficient_samples,
+                },
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
                         limits.wings.x,
@@ -134,7 +155,11 @@ fn setup_plane(
             let tail_length = limits.fuselage.y;
 
             parent.spawn((
-                Airfoil,
+                Airfoil {
+                    position: AirfoilPosition::VerticalTail,
+                    area: tail_height * tail_length,
+                    lift_coefficient_samples: vec![0.35],
+                },
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
                         tail_width,
@@ -153,14 +178,27 @@ fn setup_plane(
             ));
 
             // horizontal tail wings
-            for offset in [-1.0, 1.0] {
+            for position in [
+                AirfoilPosition::HorizontalTailLeft,
+                AirfoilPosition::HorizontalTailRight,
+            ] {
                 // tail
                 let tail_width = limits.fuselage.y;
                 let tail_height = 0.2;
                 let tail_length = limits.fuselage.y;
 
+                let offset = match position {
+                    AirfoilPosition::HorizontalTailLeft => -1.0,
+                    AirfoilPosition::HorizontalTailRight => 1.0,
+                    _ => panic!("Not a horizontal tail position"),
+                };
+
                 parent.spawn((
-                    Airfoil,
+                    Airfoil {
+                        position,
+                        area: tail_width * tail_length,
+                        lift_coefficient_samples: vec![0.35],
+                    },
                     PbrBundle {
                         mesh: meshes.add(Mesh::from(shape::Box::new(
                             tail_width,
