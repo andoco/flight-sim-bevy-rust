@@ -10,7 +10,11 @@ use bevy_egui::{
     EguiContexts, EguiPlugin,
 };
 
-use crate::{camera::FogControl, plane::PlaneFlight, world::SunControl};
+use crate::{
+    camera::FogControl,
+    plane::{Airspeed, PlaneFlight, Thrust},
+    world::SunControl,
+};
 
 pub struct HudUiPlugin;
 
@@ -65,11 +69,11 @@ fn setup(mut commands: Commands, mut contexts: EguiContexts) {
 }
 
 fn update_hud_model(
-    plane_query: Query<(&GlobalTransform, &PlaneFlight)>,
+    plane_query: Query<(&GlobalTransform, &PlaneFlight, &Thrust, &Airspeed)>,
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<Diagnostics>,
 ) {
-    let Ok((global_tx,  flight)) = plane_query.get_single() else {
+    let Ok((global_tx,  flight, Thrust(thrust), Airspeed(airspeed))) = plane_query.get_single() else {
         return;
     };
 
@@ -83,11 +87,11 @@ fn update_hud_model(
         .unwrap_or(-1.0) as f32;
 
     model.altitude = global_tx.translation().y;
-    model.airspeed = flight.airspeed;
+    model.airspeed = *airspeed;
     model.angle_of_attack = flight.angle_of_attack;
     model.drag = flight.drag;
     model.lift = flight.lift;
-    model.thrust = flight.thrust;
+    model.thrust = *thrust;
     model.weight = flight.weight;
 }
 

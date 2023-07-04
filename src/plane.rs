@@ -1,4 +1,5 @@
 use core::f32;
+use std::{iter, ops::AddAssign};
 
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -25,7 +26,9 @@ impl Plugin for PlanePlugin {
                     handle_keyboard_input,
                     handle_gamepad_input,
                     update_airfoils_rotations,
-                    compute_flight_dynamics,
+                    update_airspeed,
+                    update_thrust_forces,
+                    update_airfoil_forces,
                 )
                     .chain(),
             );
@@ -40,6 +43,7 @@ pub struct PlaneLimits {
     pub thrust: f32,
     pub fuselage: Vec3,
     pub wings: Vec2,
+    pub wing_offset_z: f32,
     pub lift_coefficient_samples: Vec<f32>,
 }
 
@@ -57,15 +61,26 @@ impl PlaneControl {
 }
 
 #[derive(Component, Default)]
+pub struct Thrust(pub f32);
+
+#[derive(Component, Default)]
+pub struct Airspeed(pub f32);
+
+#[derive(Component, Default)]
+pub struct Altitude(pub f32);
+
+#[derive(Component, Default)]
+pub struct Lift(pub f32);
+
+#[derive(Component, Default)]
 pub struct PlaneFlight {
-    pub thrust: f32,
     pub angle_of_attack: f32,
-    pub airspeed: f32,
     pub lift: f32,
     pub weight: f32,
     pub drag: f32,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum AirfoilPosition {
     Wings,
     HorizontalTailLeft,
@@ -95,10 +110,17 @@ fn setup_plane(
 
     let limits = PlaneLimits {
         thrust: 150.0,
-        fuselage: Vec3::new(2.0, 2.0, 10.0),
-        wings: Vec2::new(15.0, 2.0),
+        fuselage: Vec3::new(1.12, 2.0, 8.3),
+        wings: Vec2::new(11.0, 1.5),
+        wing_offset_z: -0.0,
         lift_coefficient_samples: lift_coefficient_samples.clone(),
     };
+
+    let tail_wing_lift_coefficient_curve = Linear::builder()
+        .elements([-0.25, -0.25, 0.0, 0.25, 0.25])
+        .knots([-90.0, -10.0, 0.0, 10.0, 90.0])
+        .build()
+        .unwrap();
 
     commands
         .spawn((
@@ -106,6 +128,9 @@ fn setup_plane(
             PlaneControl::default(),
             limits.clone(),
             PlaneFlight::default(),
+            Thrust(0.0),
+            Airspeed::default(),
+            Altitude::default(),
             SpatialBundle::from_transform(Transform::from_xyz(
                 world::SPACING as f32 * 0.5,
                 1.1,
@@ -143,8 +168,9 @@ fn setup_plane(
                 Airfoil {
                     position: AirfoilPosition::Wings,
                     area: limits.wings.x * limits.wings.y,
-                    lift_coefficient_samples,
+                    lift_coefficient_samples: lift_coefficient_samples.clone(),
                 },
+                Lift::default(),
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
                         limits.wings.x,
@@ -152,7 +178,7 @@ fn setup_plane(
                         limits.wings.y,
                     ))),
                     material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                    transform: Transform::from_xyz(0., 1.0, 0.),
+                    transform: Transform::from_xyz(0., 0.0, limits.wing_offset_z),
                     ..default()
                 },
                 Collider::cuboid(limits.wings.x * 0.5, 0.1, limits.wings.y * 0.5),
@@ -167,8 +193,9 @@ fn setup_plane(
                 Airfoil {
                     position: AirfoilPosition::VerticalTail,
                     area: tail_height * tail_length,
-                    lift_coefficient_samples: vec![0.35],
+                    lift_coefficient_samples: iter::repeat(0.0).take(180).collect(),
                 },
+                Lift::default(),
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
                         tail_width,
@@ -183,7 +210,7 @@ fn setup_plane(
                     ),
                     ..default()
                 },
-                Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
+                // Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
             ));
 
             // horizontal tail wings
@@ -192,9 +219,9 @@ fn setup_plane(
                 AirfoilPosition::HorizontalTailRight,
             ] {
                 // tail
-                let tail_width = limits.fuselage.y;
-                let tail_height = 0.2;
-                let tail_length = limits.fuselage.y;
+                let tail_width = 1.0;
+                let tail_height = 0.1;
+                let tail_length = 0.7;
 
                 let offset = match position {
                     AirfoilPosition::HorizontalTailLeft => -1.0,
@@ -206,8 +233,11 @@ fn setup_plane(
                     Airfoil {
                         position,
                         area: tail_width * tail_length,
-                        lift_coefficient_samples: vec![0.35],
+                        lift_coefficient_samples: tail_wing_lift_coefficient_curve
+                            .take(180)
+                            .collect(),
                     },
+                    Lift::default(),
                     PbrBundle {
                         mesh: meshes.add(Mesh::from(shape::Box::new(
                             tail_width,
@@ -222,7 +252,7 @@ fn setup_plane(
                         ),
                         ..default()
                     },
-                    Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
+                    // Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
                 ));
             }
         });
@@ -298,14 +328,14 @@ fn handle_keyboard_input(
             &GlobalTransform,
             &PlaneLimits,
             &mut ExternalForce,
-            &mut PlaneFlight,
             &mut PlaneControl,
+            &mut Thrust,
         ),
         With<Plane>,
     >,
     time: Res<Time>,
 ) {
-    let Ok((action_state, global_tx, limits, mut external_force, mut flight, mut control)) = query.get_single_mut() else {
+    let Ok((action_state, global_tx, limits, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
         return
     };
 
@@ -341,25 +371,23 @@ fn handle_keyboard_input(
         external_force.torque = global_tx.up() * -10.;
     }
     if action_state.pressed(PlaneAction::PitchUp) {
-        external_force.torque = global_tx.right() * -100.;
-        control.elevators += 5_f32.to_radians() * time.delta_seconds();
+        control.elevators = 10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::PitchDown) {
-        external_force.torque = global_tx.right() * 100.;
-        control.elevators -= 5_f32.to_radians() * time.delta_seconds();
+        control.elevators = -10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::ThrustUp) {
-        flight.thrust += 10.0 * time.delta_seconds();
+        thrust.0 += 10.0 * time.delta_seconds();
     }
     if action_state.pressed(PlaneAction::ThrustDown) {
-        flight.thrust -= 10.0 * time.delta_seconds();
+        thrust.0 -= 10.0 * time.delta_seconds();
     }
 
     control.elevators = control
         .elevators
         .clamp(-45_f32.to_radians(), 45_f32.to_radians());
 
-    flight.thrust = flight.thrust.clamp(0., limits.thrust);
+    thrust.0 = thrust.0.clamp(0., limits.thrust);
 }
 
 fn handle_gamepad_input(
@@ -371,13 +399,14 @@ fn handle_gamepad_input(
             &GlobalTransform,
             &PlaneLimits,
             &mut ExternalForce,
-            &mut PlaneFlight,
+            &mut PlaneControl,
+            &mut Thrust,
         ),
         With<Plane>,
     >,
     time: Res<Time>,
 ) {
-    let Ok((entity, action_state, global_tx, limits, mut external_force, mut flight)) = query.get_single_mut() else {
+    let Ok((entity, action_state, global_tx, limits, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
         return
     };
 
@@ -390,10 +419,7 @@ fn handle_gamepad_input(
     }
 
     if action_state.pressed(PlaneAction::Pitch) {
-        external_force.torque += global_tx.right()
-            * -action_state.clamped_value(PlaneAction::Pitch)
-            * time.delta_seconds()
-            * 10.0;
+        control.elevators = action_state.clamped_value(PlaneAction::Pitch) * 10.0;
     }
     if action_state.pressed(PlaneAction::Roll) {
         external_force.torque += global_tx.forward()
@@ -402,9 +428,8 @@ fn handle_gamepad_input(
             * 20.0;
     }
     if action_state.pressed(PlaneAction::Throttle) {
-        flight.thrust +=
-            action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;
-        flight.thrust = flight.thrust.clamp(0., limits.thrust);
+        thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;
+        thrust.0 = thrust.0.clamp(0., limits.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
         external_force.torque += global_tx.up()
@@ -455,60 +480,99 @@ fn update_airfoils_rotations(
     }
 }
 
-fn compute_flight_dynamics(
-    mut query: Query<
+fn update_airspeed(mut plane_query: Query<(&GlobalTransform, &Velocity, &mut Airspeed)>) {
+    for (global_tx, velocity, mut airspeed) in plane_query.iter_mut() {
+        let local_velocity = (global_tx.translation() + velocity.linvel) - global_tx.translation();
+        airspeed.0 = -local_velocity.z;
+    }
+}
+
+fn update_thrust_forces(
+    mut plane_query: Query<(&Thrust, &GlobalTransform, &mut ExternalForce), With<Plane>>,
+) {
+    for (Thrust(thrust), global_tx, mut external_force) in plane_query.iter_mut() {
+        external_force.force = global_tx.forward() * *thrust;
+    }
+}
+
+fn update_airfoil_forces(
+    mut plane_query: Query<
         (
+            &mut PlaneFlight,
+            &PlaneLimits,
             &GlobalTransform,
+            &Airspeed,
             &Velocity,
             &ReadMassProperties,
-            &PlaneLimits,
-            &mut PlaneFlight,
             &mut ExternalForce,
         ),
         With<Plane>,
     >,
-    rapier_config: Res<RapierConfiguration>,
+    airfoil_query: Query<(&Airfoil, &GlobalTransform)>,
 ) {
     for (
-        global_tx,
-        velocity,
-        ReadMassProperties(mass_props),
-        limits,
         mut flight,
+        limits,
+        global_tx,
+        Airspeed(airspeed),
+        velocity,
+        ReadMassProperties(mass_properties),
         mut external_force,
-    ) in query.iter_mut()
+    ) in plane_query.iter_mut()
     {
-        let local_velocity = (global_tx.translation() + velocity.linvel) - global_tx.translation();
-        let airspeed = -local_velocity.z;
-
-        // Angle between the chord line of the wing (front edge to back edge) and the velocity
-        // of the air flowing over the wing.
-        let angle_of_attack = angle_of_attack_signed(global_tx, velocity.linvel);
-
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
-        let wing_area = limits.wings.x * limits.wings.y;
 
-        let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
+        for (airfoil, airfoil_global_tx) in airfoil_query.iter() {
+            let angle_of_attack = angle_of_attack_signed(airfoil_global_tx, velocity.linvel);
 
-        let lift_coefficient = limits
-            .lift_coefficient_samples
-            .get(lift_coefficient_index)
-            .unwrap_or(&0.0);
+            let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
 
-        let lift = lift_coefficient * dynamic_pressure * wing_area;
+            let lift_coefficient = airfoil
+                .lift_coefficient_samples
+                .get(lift_coefficient_index)
+                .unwrap_or(&0.0);
 
-        let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
-        let drag = drag_coefficient * dynamic_pressure * wing_area;
+            let lift = lift_coefficient * dynamic_pressure * airfoil.area;
 
-        flight.angle_of_attack = angle_of_attack;
-        flight.airspeed = airspeed;
-        flight.lift = lift;
-        flight.weight = rapier_config.gravity.y.abs() * mass_props.mass;
-        flight.drag = drag;
+            let tx = global_tx.compute_transform();
+            let centre_of_mass =
+                tx.translation + (tx.rotation * mass_properties.local_center_of_mass);
 
-        external_force.force = global_tx.forward() * flight.thrust;
-        external_force.force += -velocity.linvel.normalize_or_zero() * flight.drag;
-        external_force.force += global_tx.up() * flight.lift;
+            let centre_of_mass_1 =
+                global_tx.translation() + global_tx.forward() * limits.wing_offset_z;
+
+            // info!("{:?}: lift={}", airfoil.position, lift);
+            info!(
+                "cog={:?} {:?} {:?}",
+                mass_properties.local_center_of_mass, centre_of_mass, centre_of_mass_1
+            );
+
+            match airfoil.position {
+                AirfoilPosition::Wings => {
+                    external_force.add_assign(ExternalForce::at_point(
+                        airfoil_global_tx.up() * lift,
+                        airfoil_global_tx.translation()
+                            + global_tx.forward() * limits.wing_offset_z,
+                        centre_of_mass,
+                    ));
+
+                    let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
+                    let drag = drag_coefficient * dynamic_pressure * airfoil.area;
+                    external_force.force += -velocity.linvel.normalize_or_zero() * drag;
+
+                    flight.lift = lift;
+                    flight.drag = drag;
+                }
+                AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
+                    external_force.add_assign(ExternalForce::at_point(
+                        airfoil_global_tx.up() * lift * 0.01,
+                        airfoil_global_tx.translation(),
+                        centre_of_mass,
+                    ));
+                }
+                _ => {}
+            }
+        }
     }
 }
