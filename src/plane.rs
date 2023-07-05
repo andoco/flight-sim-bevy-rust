@@ -15,15 +15,17 @@ pub struct PlanePlugin;
 
 impl Plugin for PlanePlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup_plane).add_systems(
-            (
-                update_airfoil_rotations,
-                update_airspeed,
-                update_thrust_forces,
-                update_airfoil_forces,
+        app.add_startup_system(setup_plane)
+            .add_systems(
+                (
+                    update_airfoil_rotations,
+                    update_airspeed,
+                    update_thrust_forces,
+                    update_airfoil_forces,
+                )
+                    .chain(),
             )
-                .chain(),
-        );
+            .add_system(update_propellor);
     }
 }
 
@@ -89,6 +91,9 @@ pub struct Airfoil {
     pub lift_coefficient_samples: Vec<f32>,
 }
 
+#[derive(Component)]
+pub struct Propellor;
+
 fn setup_plane(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -115,6 +120,8 @@ fn setup_plane(
         .knots([-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0])
         .build()
         .unwrap();
+
+    let color = Color::rgb(0.8, 0.7, 0.6);
 
     commands
         .spawn((
@@ -147,7 +154,7 @@ fn setup_plane(
                         limits.fuselage.y,
                         limits.fuselage.z,
                     ))),
-                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                    material: materials.add(color.into()),
                     ..default()
                 },
                 Friction::new(0.01),
@@ -156,6 +163,21 @@ fn setup_plane(
                     limits.fuselage.y * 0.5,
                     limits.fuselage.z * 0.5,
                 ),
+            ));
+
+            // propeller
+            parent.spawn((
+                Propellor,
+                PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Box::new(
+                        limits.fuselage.x * 2.5,
+                        0.4,
+                        0.1,
+                    ))),
+                    material: materials.add(color.into()),
+                    transform: Transform::from_xyz(0.0, 0.0, -limits.fuselage.z * 0.5),
+                    ..default()
+                },
             ));
 
             // wing
@@ -173,7 +195,7 @@ fn setup_plane(
                         0.2,
                         limits.wings.y,
                     ))),
-                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                    material: materials.add(color.into()),
                     transform: Transform::from_xyz(0., 0.0, limits.wing_offset_z),
                     ..default()
                 },
@@ -199,7 +221,7 @@ fn setup_plane(
                         tail_height,
                         tail_length,
                     ))),
-                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                    material: materials.add(color.into()),
                     transform: Transform::from_xyz(
                         0.,
                         limits.fuselage.y * 0.5 + tail_height * 0.5,
@@ -242,7 +264,7 @@ fn setup_plane(
                             tail_height,
                             tail_length,
                         ))),
-                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                        material: materials.add(color.into()),
                         transform: Transform::from_xyz(
                             (limits.fuselage.x * 0.5 + tail_width * 0.5) * offset,
                             0.0,
@@ -278,6 +300,21 @@ fn update_airfoil_rotations(
                 }
             }
         }
+    }
+}
+
+fn update_propellor(
+    plane_query: Query<(&Thrust, &PlaneLimits)>,
+    mut propellor_query: Query<&mut Transform, With<Propellor>>,
+    time: Res<Time>,
+) {
+    let Ok((Thrust(thrust), limits)) = plane_query.get_single() else {
+        return;
+    };
+
+    for mut tx in propellor_query.iter_mut() {
+        let rate = (*thrust / limits.thrust) * 3600_f32.to_radians();
+        tx.rotate_local_z(rate * time.delta_seconds());
     }
 }
 
