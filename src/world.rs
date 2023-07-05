@@ -8,6 +8,7 @@ use noise::{NoiseFn, Perlin};
 
 use crate::{
     camera::{CameraPlugin, Follow},
+    input::InputPlugin,
     physics::PhysicsPlugin,
     plane::PlanePlugin,
 };
@@ -25,6 +26,7 @@ impl Plugin for WorldPlugin {
             .add_plugin(CameraPlugin)
             .add_plugin(PhysicsPlugin)
             .add_plugin(PlanePlugin)
+            .add_plugin(InputPlugin)
             .insert_resource(Rand {
                 perlin: Perlin::new(1),
             })
