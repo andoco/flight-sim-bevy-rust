@@ -1,5 +1,6 @@
 mod camera;
 mod hud_ui;
+mod physics;
 mod plane;
 mod world;
 

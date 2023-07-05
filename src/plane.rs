@@ -11,6 +11,7 @@ use leafwing_input_manager::{
 
 use crate::{
     camera::{self, Follow},
+    physics::CentreOfGravity,
     world::{self, BlockPos},
 };
 
@@ -128,6 +129,7 @@ fn setup_plane(
             PlaneControl::default(),
             limits.clone(),
             PlaneFlight::default(),
+            CentreOfGravity::default(),
             Thrust(0.0),
             Airspeed::default(),
             Altitude::default(),
@@ -503,7 +505,7 @@ fn update_airfoil_forces(
             &GlobalTransform,
             &Airspeed,
             &Velocity,
-            &ReadMassProperties,
+            &CentreOfGravity,
             &mut ExternalForce,
         ),
         With<Plane>,
@@ -516,7 +518,7 @@ fn update_airfoil_forces(
         global_tx,
         Airspeed(airspeed),
         velocity,
-        ReadMassProperties(mass_properties),
+        centre_of_gravity,
         mut external_force,
     ) in plane_query.iter_mut()
     {
@@ -535,26 +537,13 @@ fn update_airfoil_forces(
 
             let lift = lift_coefficient * dynamic_pressure * airfoil.area;
 
-            let tx = global_tx.compute_transform();
-            let centre_of_mass =
-                tx.translation + (tx.rotation * mass_properties.local_center_of_mass);
-
-            let centre_of_mass_1 =
-                global_tx.translation() + global_tx.forward() * limits.wing_offset_z;
-
-            // info!("{:?}: lift={}", airfoil.position, lift);
-            info!(
-                "cog={:?} {:?} {:?}",
-                mass_properties.local_center_of_mass, centre_of_mass, centre_of_mass_1
-            );
-
             match airfoil.position {
                 AirfoilPosition::Wings => {
                     external_force.add_assign(ExternalForce::at_point(
                         airfoil_global_tx.up() * lift,
                         airfoil_global_tx.translation()
                             + global_tx.forward() * limits.wing_offset_z,
-                        centre_of_mass,
+                        centre_of_gravity.global,
                     ));
 
                     let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
@@ -568,7 +557,7 @@ fn update_airfoil_forces(
                     external_force.add_assign(ExternalForce::at_point(
                         airfoil_global_tx.up() * lift * 0.01,
                         airfoil_global_tx.translation(),
-                        centre_of_mass,
+                        centre_of_gravity.global,
                     ));
                 }
                 _ => {}
