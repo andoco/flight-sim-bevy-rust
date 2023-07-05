@@ -12,7 +12,7 @@ use bevy_egui::{
 
 use crate::{
     camera::FogControl,
-    plane::{Airfoil, Airspeed, Lift, PlaneFlight, Thrust},
+    plane::{Airfoil, Airspeed, AngleOfAttack, Lift, PlaneFlight, Thrust},
     world::SunControl,
 };
 
@@ -77,7 +77,7 @@ fn setup(mut commands: Commands, mut contexts: EguiContexts) {
 
 fn update_hud_model(
     plane_query: Query<(&GlobalTransform, &PlaneFlight, &Thrust, &Airspeed)>,
-    airfoil_query: Query<(&Airfoil, &Lift)>,
+    airfoil_query: Query<(&Airfoil, &AngleOfAttack, &Lift)>,
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<Diagnostics>,
 ) {
@@ -100,24 +100,24 @@ fn update_hud_model(
     model.thrust = *thrust;
     model.weight = flight.weight;
 
-    for (airfoil, Lift(lift)) in airfoil_query.iter() {
+    for (airfoil, AngleOfAttack(aoa), Lift(lift)) in airfoil_query.iter() {
         match airfoil.position {
             crate::plane::AirfoilPosition::Wings => {
                 model.wing = AirfoilModel {
                     lift: *lift,
-                    aoa: 0.0,
+                    aoa: aoa.to_degrees(),
                 };
             }
             crate::plane::AirfoilPosition::HorizontalTailLeft => {
                 model.tail_wing_left = AirfoilModel {
                     lift: *lift,
-                    aoa: 0.0,
+                    aoa: aoa.to_degrees(),
                 };
             }
             crate::plane::AirfoilPosition::HorizontalTailRight => {
                 model.tail_wing_right = AirfoilModel {
                     lift: *lift,
-                    aoa: 0.0,
+                    aoa: aoa.to_degrees(),
                 };
             }
             _ => {}

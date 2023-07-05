@@ -65,6 +65,9 @@ pub struct Altitude(pub f32);
 pub struct Lift(pub f32);
 
 #[derive(Component, Default)]
+pub struct AngleOfAttack(pub f32);
+
+#[derive(Component, Default)]
 pub struct PlaneFlight {
     pub angle_of_attack: f32,
     pub weight: f32,
@@ -108,8 +111,8 @@ fn setup_plane(
     };
 
     let tail_wing_lift_coefficient_curve = Linear::builder()
-        .elements([-0.25, -0.25, 0.0, 0.25, 0.25])
-        .knots([-90.0, -10.0, 0.0, 10.0, 90.0])
+        .elements([-0.0, -0.25, 0.0, 0.0, 0.0, 0.25, 0.0])
+        .knots([-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0])
         .build()
         .unwrap();
 
@@ -162,6 +165,7 @@ fn setup_plane(
                     area: limits.wings.x * limits.wings.y,
                     lift_coefficient_samples: lift_coefficient_samples.clone(),
                 },
+                AngleOfAttack::default(),
                 Lift::default(),
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
@@ -187,6 +191,7 @@ fn setup_plane(
                     area: tail_height * tail_length,
                     lift_coefficient_samples: iter::repeat(0.0).take(180).collect(),
                 },
+                AngleOfAttack::default(),
                 Lift::default(),
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
@@ -229,6 +234,7 @@ fn setup_plane(
                             .take(180)
                             .collect(),
                     },
+                    AngleOfAttack::default(),
                     Lift::default(),
                     PbrBundle {
                         mesh: meshes.add(Mesh::from(shape::Box::new(
@@ -303,7 +309,7 @@ fn update_airfoil_forces(
         ),
         With<Plane>,
     >,
-    mut airfoil_query: Query<(&Airfoil, &GlobalTransform, &mut Lift)>,
+    mut airfoil_query: Query<(&Airfoil, &GlobalTransform, &mut AngleOfAttack, &mut Lift)>,
 ) {
     for (
         mut flight,
@@ -318,8 +324,9 @@ fn update_airfoil_forces(
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
 
-        for (airfoil, airfoil_global_tx, mut airfoil_lift) in airfoil_query.iter_mut() {
+        for (airfoil, airfoil_global_tx, mut aoa, mut airfoil_lift) in airfoil_query.iter_mut() {
             let angle_of_attack = angle_of_attack_signed(airfoil_global_tx, velocity.linvel);
+            aoa.0 = angle_of_attack;
 
             let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
 
