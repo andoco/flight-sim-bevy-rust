@@ -121,7 +121,10 @@ fn setup_plane(
         .build()
         .unwrap();
 
-    let color = Color::rgb(0.8, 0.7, 0.6);
+    let metal_color = Color::hex("d5d5d7").unwrap();
+    let fuselage_color = Color::rgb(1.0, 0.0, 0.0);
+    let propellor_color = metal_color;
+    let wing_color = metal_color;
 
     commands
         .spawn((
@@ -154,7 +157,7 @@ fn setup_plane(
                         limits.fuselage.y,
                         limits.fuselage.z,
                     ))),
-                    material: materials.add(color.into()),
+                    material: materials.add(fuselage_color.into()),
                     ..default()
                 },
                 Friction::new(0.01),
@@ -174,7 +177,7 @@ fn setup_plane(
                         0.4,
                         0.1,
                     ))),
-                    material: materials.add(color.into()),
+                    material: materials.add(propellor_color.into()),
                     transform: Transform::from_xyz(0.0, 0.0, -limits.fuselage.z * 0.5),
                     ..default()
                 },
@@ -195,7 +198,7 @@ fn setup_plane(
                         0.2,
                         limits.wings.y,
                     ))),
-                    material: materials.add(color.into()),
+                    material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(0., 0.0, limits.wing_offset_z),
                     ..default()
                 },
@@ -221,7 +224,7 @@ fn setup_plane(
                         tail_height,
                         tail_length,
                     ))),
-                    material: materials.add(color.into()),
+                    material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(
                         0.,
                         limits.fuselage.y * 0.5 + tail_height * 0.5,
@@ -264,7 +267,7 @@ fn setup_plane(
                             tail_height,
                             tail_length,
                         ))),
-                        material: materials.add(color.into()),
+                        material: materials.add(wing_color.into()),
                         transform: Transform::from_xyz(
                             (limits.fuselage.x * 0.5 + tail_width * 0.5) * offset,
                             0.0,
