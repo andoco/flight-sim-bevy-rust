@@ -17,7 +17,7 @@ impl Plugin for PlanePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup_plane).add_systems(
             (
-                update_airfoils_rotations,
+                update_airfoil_rotations,
                 update_airspeed,
                 update_thrust_forces,
                 update_airfoil_forces,
@@ -258,7 +258,7 @@ fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3) -> f32 {
     a2 - a1
 }
 
-fn update_airfoils_rotations(
+fn update_airfoil_rotations(
     query: Query<(&PlaneControl, &Children)>,
     mut airfoil_query: Query<(&Airfoil, &mut Transform)>,
 ) {
