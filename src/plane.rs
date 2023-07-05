@@ -289,10 +289,27 @@ fn update_airspeed(mut plane_query: Query<(&GlobalTransform, &Velocity, &mut Air
 }
 
 fn update_thrust_forces(
-    mut plane_query: Query<(&Thrust, &GlobalTransform, &mut ExternalForce), With<Plane>>,
+    mut plane_query: Query<
+        (
+            &PlaneLimits,
+            &Thrust,
+            &GlobalTransform,
+            &CentreOfGravity,
+            &mut ExternalForce,
+        ),
+        With<Plane>,
+    >,
 ) {
-    for (Thrust(thrust), global_tx, mut external_force) in plane_query.iter_mut() {
-        external_force.force = global_tx.forward() * *thrust;
+    for (limits, Thrust(thrust), global_tx, centre_of_gravity, mut external_force) in
+        plane_query.iter_mut()
+    {
+        external_force.force = Vec3::ZERO;
+        external_force.torque = Vec3::ZERO;
+        external_force.add_assign(ExternalForce::at_point(
+            global_tx.forward() * *thrust,
+            global_tx.translation() + (global_tx.forward() * limits.fuselage.z * 0.5),
+            centre_of_gravity.global,
+        ));
     }
 }
 
