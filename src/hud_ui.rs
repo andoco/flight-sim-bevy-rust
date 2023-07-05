@@ -12,7 +12,7 @@ use bevy_egui::{
 
 use crate::{
     camera::FogControl,
-    plane::{Airspeed, PlaneFlight, Thrust},
+    plane::{Airfoil, Airspeed, Lift, PlaneFlight, Thrust},
     world::SunControl,
 };
 
@@ -35,7 +35,9 @@ struct HudModel {
     thrust: f32,
     angle_of_attack: f32,
     airspeed: f32,
-    lift: f32,
+    lift_wing: f32,
+    lift_tail_left: f32,
+    lift_tail_right: f32,
     weight: f32,
     drag: f32,
     show_environment: bool,
@@ -70,6 +72,7 @@ fn setup(mut commands: Commands, mut contexts: EguiContexts) {
 
 fn update_hud_model(
     plane_query: Query<(&GlobalTransform, &PlaneFlight, &Thrust, &Airspeed)>,
+    airfoil_query: Query<(&Airfoil, &Lift)>,
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<Diagnostics>,
 ) {
@@ -90,9 +93,23 @@ fn update_hud_model(
     model.airspeed = *airspeed;
     model.angle_of_attack = flight.angle_of_attack;
     model.drag = flight.drag;
-    model.lift = flight.lift;
     model.thrust = *thrust;
     model.weight = flight.weight;
+
+    for (airfoil, Lift(lift)) in airfoil_query.iter() {
+        match airfoil.position {
+            crate::plane::AirfoilPosition::Wings => {
+                model.lift_wing = *lift;
+            }
+            crate::plane::AirfoilPosition::HorizontalTailLeft => {
+                model.lift_tail_left = *lift;
+            }
+            crate::plane::AirfoilPosition::HorizontalTailRight => {
+                model.lift_tail_right = *lift;
+            }
+            _ => {}
+        }
+    }
 }
 
 fn update_hud_ui(
@@ -108,6 +125,7 @@ fn update_hud_ui(
     let ctx = contexts.ctx_mut();
 
     let width = 10;
+    let normal_color = Color32::WHITE;
 
     let float_label = |ui: &mut Ui, txt: &str, val: f32, color: Color32| {
         let sign_char = match val.is_sign_positive() {
@@ -125,6 +143,13 @@ fn update_hud_ui(
             ))
             .color(color),
         );
+    };
+
+    let lift_color = |lift: f32, weight: f32| -> Color32 {
+        match lift {
+            l if l < weight => Color32::RED,
+            _ => Color32::GREEN,
+        }
     };
 
     egui::Window::new("Environment")
@@ -154,26 +179,39 @@ fn update_hud_ui(
         });
 
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-        let c = Color32::WHITE;
-
-        let lift_color = match model.lift {
-            l if l < model.weight => Color32::RED,
-            _ => Color32::GREEN,
-        };
-
         ui.horizontal(|ui| {
             if ui.button("Environment").clicked() {
                 model.show_environment = !model.show_environment;
             }
 
-            float_label(ui, "fps", model.fps, c);
-            float_label(ui, "altitude", model.altitude, c);
-            float_label(ui, "airspeed", model.airspeed, c);
-            float_label(ui, "aoa", model.angle_of_attack.to_degrees(), c);
-            float_label(ui, "weight", model.weight, c);
-            float_label(ui, "lift", model.lift, lift_color);
-            float_label(ui, "drag", model.drag, c);
-            float_label(ui, "thrust", model.thrust, c);
+            float_label(ui, "fps", model.fps, normal_color);
+            float_label(ui, "altitude", model.altitude, normal_color);
+            float_label(ui, "airspeed", model.airspeed, normal_color);
+            float_label(ui, "aoa", model.angle_of_attack.to_degrees(), normal_color);
+            float_label(ui, "drag", model.drag, normal_color);
+            float_label(ui, "thrust", model.thrust, normal_color);
+        });
+
+        ui.horizontal(|ui| {
+            float_label(ui, "weight", model.weight, normal_color);
+            float_label(
+                ui,
+                "lift(M)",
+                model.lift_wing,
+                lift_color(model.lift_wing, model.weight),
+            );
+            float_label(
+                ui,
+                "lift(TL)",
+                model.lift_tail_left,
+                lift_color(model.lift_tail_left, model.weight),
+            );
+            float_label(
+                ui,
+                "lift(TR)",
+                model.lift_tail_right,
+                lift_color(model.lift_tail_right, model.weight),
+            );
         });
     });
 }

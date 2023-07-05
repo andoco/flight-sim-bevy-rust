@@ -67,7 +67,6 @@ pub struct Lift(pub f32);
 #[derive(Component, Default)]
 pub struct PlaneFlight {
     pub angle_of_attack: f32,
-    pub lift: f32,
     pub weight: f32,
     pub drag: f32,
 }
@@ -304,7 +303,7 @@ fn update_airfoil_forces(
         ),
         With<Plane>,
     >,
-    airfoil_query: Query<(&Airfoil, &GlobalTransform)>,
+    mut airfoil_query: Query<(&Airfoil, &GlobalTransform, &mut Lift)>,
 ) {
     for (
         mut flight,
@@ -319,7 +318,7 @@ fn update_airfoil_forces(
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
 
-        for (airfoil, airfoil_global_tx) in airfoil_query.iter() {
+        for (airfoil, airfoil_global_tx, mut airfoil_lift) in airfoil_query.iter_mut() {
             let angle_of_attack = angle_of_attack_signed(airfoil_global_tx, velocity.linvel);
 
             let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
@@ -330,6 +329,7 @@ fn update_airfoil_forces(
                 .unwrap_or(&0.0);
 
             let lift = lift_coefficient * dynamic_pressure * airfoil.area;
+            airfoil_lift.0 = lift;
 
             match airfoil.position {
                 AirfoilPosition::Wings => {
@@ -344,7 +344,6 @@ fn update_airfoil_forces(
                     let drag = drag_coefficient * dynamic_pressure * airfoil.area;
                     external_force.force += -velocity.linvel.normalize_or_zero() * drag;
 
-                    flight.lift = lift;
                     flight.drag = drag;
                 }
                 AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
