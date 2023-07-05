@@ -28,16 +28,21 @@ impl Plugin for HudUiPlugin {
     }
 }
 
+#[derive(Default)]
+struct AirfoilModel {
+    lift: f32,
+    aoa: f32,
+}
+
 #[derive(Component, Default)]
 struct HudModel {
     fps: f32,
     altitude: f32,
     thrust: f32,
-    angle_of_attack: f32,
     airspeed: f32,
-    lift_wing: f32,
-    lift_tail_left: f32,
-    lift_tail_right: f32,
+    wing: AirfoilModel,
+    tail_wing_left: AirfoilModel,
+    tail_wing_right: AirfoilModel,
     weight: f32,
     drag: f32,
     show_environment: bool,
@@ -91,7 +96,6 @@ fn update_hud_model(
 
     model.altitude = global_tx.translation().y;
     model.airspeed = *airspeed;
-    model.angle_of_attack = flight.angle_of_attack;
     model.drag = flight.drag;
     model.thrust = *thrust;
     model.weight = flight.weight;
@@ -99,13 +103,22 @@ fn update_hud_model(
     for (airfoil, Lift(lift)) in airfoil_query.iter() {
         match airfoil.position {
             crate::plane::AirfoilPosition::Wings => {
-                model.lift_wing = *lift;
+                model.wing = AirfoilModel {
+                    lift: *lift,
+                    aoa: 0.0,
+                };
             }
             crate::plane::AirfoilPosition::HorizontalTailLeft => {
-                model.lift_tail_left = *lift;
+                model.tail_wing_left = AirfoilModel {
+                    lift: *lift,
+                    aoa: 0.0,
+                };
             }
             crate::plane::AirfoilPosition::HorizontalTailRight => {
-                model.lift_tail_right = *lift;
+                model.tail_wing_right = AirfoilModel {
+                    lift: *lift,
+                    aoa: 0.0,
+                };
             }
             _ => {}
         }
@@ -145,9 +158,9 @@ fn update_hud_ui(
         );
     };
 
-    let lift_color = |lift: f32, weight: f32| -> Color32 {
+    let lift_color = |lift: f32| -> Color32 {
         match lift {
-            l if l < weight => Color32::RED,
+            l if l < 0.0 => Color32::RED,
             _ => Color32::GREEN,
         }
     };
@@ -185,33 +198,35 @@ fn update_hud_ui(
             }
 
             float_label(ui, "fps", model.fps, normal_color);
+            float_label(ui, "weight", model.weight, normal_color);
             float_label(ui, "altitude", model.altitude, normal_color);
             float_label(ui, "airspeed", model.airspeed, normal_color);
-            float_label(ui, "aoa", model.angle_of_attack.to_degrees(), normal_color);
             float_label(ui, "drag", model.drag, normal_color);
             float_label(ui, "thrust", model.thrust, normal_color);
         });
 
         ui.horizontal(|ui| {
-            float_label(ui, "weight", model.weight, normal_color);
-            float_label(
-                ui,
-                "lift(M)",
-                model.lift_wing,
-                lift_color(model.lift_wing, model.weight),
-            );
-            float_label(
-                ui,
-                "lift(TL)",
-                model.lift_tail_left,
-                lift_color(model.lift_tail_left, model.weight),
-            );
-            float_label(
-                ui,
-                "lift(TR)",
-                model.lift_tail_right,
-                lift_color(model.lift_tail_right, model.weight),
-            );
+            let groups = [
+                ("main", model.wing.lift, model.wing.aoa),
+                (
+                    "tail_left",
+                    model.tail_wing_left.lift,
+                    model.tail_wing_left.aoa,
+                ),
+                (
+                    "tail_right",
+                    model.tail_wing_right.lift,
+                    model.tail_wing_right.aoa,
+                ),
+            ];
+
+            for (label, lift, aoa) in groups.iter() {
+                ui.group(|ui| {
+                    ui.label(*label);
+                    float_label(ui, "aoa", *aoa, normal_color);
+                    float_label(ui, "lift", *lift, lift_color(*lift));
+                });
+            }
         });
     });
 }
