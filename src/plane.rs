@@ -25,6 +25,7 @@ impl Plugin for PlanePlugin {
             .add_systems(
                 (
                     update_airfoil_rotations,
+                    update_ailerons,
                     update_airspeed,
                     update_thrust_forces,
                     update_airfoil_forces,
@@ -84,7 +85,8 @@ pub struct PlaneFlight {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum AirfoilPosition {
-    Wings,
+    WingLeft,
+    WingRight,
     HorizontalTailLeft,
     HorizontalTailRight,
     VerticalTail,
@@ -211,7 +213,6 @@ fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3) -> f32 {
 fn update_airfoil_rotations(
     query: Query<(&PlaneControl, &Children)>,
     mut airfoil_query: Query<(&Airfoil, &mut Transform)>,
-    mut aileron_query: Query<(&mut Transform, &Aileron), Without<Airfoil>>,
 ) {
     for (control, children) in query.iter() {
         for child in children.iter() {
@@ -223,10 +224,25 @@ fn update_airfoil_rotations(
                     _ => {}
                 }
             }
+        }
+    }
+}
 
-            if let Ok((mut aileron_tx, Aileron(side))) = aileron_query.get_mut(*child) {
-                info!("HERE");
-                aileron_tx.rotation = Quat::from_rotation_x(control.ailerons);
+fn update_ailerons(
+    control_query: Query<&PlaneControl>,
+    wing_query: Query<(&Parent, &Children), With<Wing>>,
+    mut aileron_query: Query<(&mut Transform, &Aileron)>,
+) {
+    for (entity, children) in wing_query.iter() {
+        if let Ok(control) = control_query.get(**entity) {
+            for child in children.iter() {
+                if let Ok((mut aileron_tx, Aileron(side))) = aileron_query.get_mut(*child) {
+                    match side {
+                        _ => {
+                            aileron_tx.rotation = Quat::from_rotation_x(control.ailerons);
+                        }
+                    }
+                }
             }
         }
     }
@@ -284,7 +300,6 @@ fn update_airfoil_forces(
         (
             &mut PlaneFlight,
             &PlaneLimits,
-            &PlaneControl,
             &GlobalTransform,
             &Airspeed,
             &Velocity,
@@ -298,7 +313,6 @@ fn update_airfoil_forces(
     for (
         mut flight,
         limits,
-        control,
         global_tx,
         Airspeed(airspeed),
         velocity,
@@ -324,7 +338,7 @@ fn update_airfoil_forces(
             airfoil_lift.0 = lift;
 
             match airfoil.position {
-                AirfoilPosition::Wings => {
+                AirfoilPosition::WingLeft | AirfoilPosition::WingRight => {
                     external_force.add_assign(ExternalForce::at_point(
                         airfoil_global_tx.up() * lift,
                         airfoil_global_tx.translation()
@@ -337,18 +351,6 @@ fn update_airfoil_forces(
                     external_force.force += -velocity.linvel.normalize_or_zero() * drag;
 
                     flight.drag = drag;
-
-                    // aileron forces
-                    external_force.add_assign(ExternalForce::at_point(
-                        global_tx.up() * control.ailerons,
-                        global_tx.translation() + (global_tx.left() * limits.wings.x * 0.5),
-                        centre_of_gravity.global,
-                    ));
-                    external_force.add_assign(ExternalForce::at_point(
-                        global_tx.down() * control.ailerons,
-                        global_tx.translation() + (global_tx.right() * limits.wings.x * 0.5),
-                        centre_of_gravity.global,
-                    ));
                 }
                 AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
                     external_force.add_assign(ExternalForce::at_point(

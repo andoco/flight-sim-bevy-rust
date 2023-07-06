@@ -65,43 +65,43 @@ fn build_wing(
     wing_color: Color,
     side: Side,
 ) {
+    let (position, offset) = match side {
+        Side::Left => (AirfoilPosition::WingLeft, 1.0),
+        Side::Right => (AirfoilPosition::WingRight, -1.0),
+    };
+
+    let width = limits.wings.x * 0.5;
+    let length = limits.wings.y;
+
     parent
         .spawn((
             Wing(side),
             Airfoil {
-                position: AirfoilPosition::Wings,
-                area: limits.wings.x * limits.wings.y,
+                position,
+                area: width * length,
                 lift_coefficient_samples: lift_coefficient_samples.clone(),
             },
             AngleOfAttack::default(),
             Lift::default(),
             PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Box::new(
-                    limits.wings.x,
-                    0.2,
-                    limits.wings.y,
-                ))),
+                mesh: meshes.add(Mesh::from(shape::Box::new(width, 0.2, length))),
                 material: materials.add(wing_color.into()),
-                transform: Transform::from_xyz(0., 0.0, limits.wing_offset_z),
+                transform: Transform::from_xyz(width * 0.5 * offset, 0.0, limits.wing_offset_z),
                 ..default()
             },
-            Collider::cuboid(limits.wings.x * 0.5, 0.1, limits.wings.y * 0.5),
+            Collider::cuboid(width * 0.5, 0.1, length * 0.5),
         ))
         .with_children(|parent| {
-            // ailerons (not simulated as directly lift-producing)
+            // aileron (not simulated as directly lift-producing)
             parent.spawn((
                 Aileron(side),
                 PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Box::new(
-                        limits.wings.x,
-                        0.2,
-                        limits.wings.y,
-                    ))),
+                    mesh: meshes.add(Mesh::from(shape::Box::new(width * 0.5, 0.2, length * 0.5))),
                     material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(
-                        0.,
+                        width * 0.25 * offset,
                         0.0,
-                        limits.wing_offset_z + limits.wings.y / 2.0,
+                        limits.wing_offset_z + length / 2.0,
                     ),
                     ..default()
                 },

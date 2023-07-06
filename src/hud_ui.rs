@@ -40,7 +40,8 @@ struct HudModel {
     altitude: f32,
     thrust: f32,
     airspeed: f32,
-    wing: AirfoilModel,
+    wing_left: AirfoilModel,
+    wing_right: AirfoilModel,
     tail_wing_left: AirfoilModel,
     tail_wing_right: AirfoilModel,
     weight: f32,
@@ -102,8 +103,14 @@ fn update_hud_model(
 
     for (airfoil, AngleOfAttack(aoa), Lift(lift)) in airfoil_query.iter() {
         match airfoil.position {
-            crate::plane::AirfoilPosition::Wings => {
-                model.wing = AirfoilModel {
+            crate::plane::AirfoilPosition::WingLeft => {
+                model.wing_left = AirfoilModel {
+                    lift: *lift,
+                    aoa: aoa.to_degrees(),
+                };
+            }
+            crate::plane::AirfoilPosition::WingRight => {
+                model.wing_right = AirfoilModel {
                     lift: *lift,
                     aoa: aoa.to_degrees(),
                 };
@@ -207,7 +214,8 @@ fn update_hud_ui(
 
         ui.horizontal(|ui| {
             let groups = [
-                ("main", model.wing.lift, model.wing.aoa),
+                ("wing_left", model.wing_left.lift, model.wing_left.aoa),
+                ("wing_right", model.wing_right.lift, model.wing_right.aoa),
                 (
                     "tail_left",
                     model.tail_wing_left.lift,
