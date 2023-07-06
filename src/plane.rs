@@ -354,7 +354,7 @@ fn update_airfoil_forces(
                 }
                 AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
                     external_force.add_assign(ExternalForce::at_point(
-                        airfoil_global_tx.up() * lift * 0.01,
+                        airfoil_global_tx.up() * lift,
                         airfoil_global_tx.translation(),
                         centre_of_gravity.global,
                     ));
