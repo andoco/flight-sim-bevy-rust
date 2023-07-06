@@ -109,23 +109,14 @@ fn handle_keyboard_input(
         || action_state.just_released(PlaneAction::YawLeft)
         || action_state.just_released(PlaneAction::YawRight)
     {
-        info!("Clearing torque and controls");
-        external_force.torque = Vec3::ZERO;
         control.clear();
     }
 
-    if action_state.just_released(PlaneAction::ThrustUp)
-        || action_state.just_released(PlaneAction::ThrustDown)
-    {
-        info!("Clearing force");
-        external_force.force = Vec3::ZERO;
-    }
-
     if action_state.pressed(PlaneAction::RollLeft) {
-        external_force.torque = global_tx.forward() * -100.;
+        control.ailerons = -10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::RollRight) {
-        external_force.torque = global_tx.forward() * 100.;
+        control.ailerons = 10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::YawLeft) {
         external_force.torque = global_tx.up() * 10.;
@@ -148,6 +139,10 @@ fn handle_keyboard_input(
 
     control.elevators = control
         .elevators
+        .clamp(-45_f32.to_radians(), 45_f32.to_radians());
+
+    control.ailerons = control
+        .ailerons
         .clamp(-45_f32.to_radians(), 45_f32.to_radians());
 
     thrust.0 = thrust.0.clamp(0., limits.thrust);
