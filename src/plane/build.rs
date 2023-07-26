@@ -92,16 +92,30 @@ fn build_wing(
             Collider::cuboid(width * 0.5, 0.1, length * 0.5),
         ))
         .with_children(|parent| {
-            // aileron (not simulated as directly lift-producing)
+            let aileron_width = width * 0.5;
+            let aileron_height = 0.2;
+            let aileron_length = length * 0.5;
+
             parent.spawn((
                 Aileron(side),
+                Airfoil {
+                    position: AirfoilPosition::Aileron(side),
+                    area: aileron_width * aileron_length,
+                    lift_coefficient_samples: lift_coefficient_samples.clone(),
+                },
+                AngleOfAttack::default(),
+                Lift::default(),
                 PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Box::new(width * 0.5, 0.2, length * 0.5))),
+                    mesh: meshes.add(Mesh::from(shape::Box::new(
+                        aileron_width,
+                        aileron_height,
+                        aileron_length,
+                    ))),
                     material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(
-                        width * 0.25 * offset,
+                        aileron_width * 0.25 * offset,
                         0.0,
-                        limits.wing_offset_z + length / 2.0,
+                        limits.wing_offset_z + aileron_length / 2.0,
                     ),
                     ..default()
                 },

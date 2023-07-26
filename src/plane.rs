@@ -87,6 +87,7 @@ pub struct PlaneFlight {
 pub enum AirfoilPosition {
     WingLeft,
     WingRight,
+    Aileron(Side),
     HorizontalTailLeft,
     HorizontalTailRight,
     VerticalTail,
@@ -99,7 +100,7 @@ pub struct Airfoil {
     pub lift_coefficient_samples: Vec<f32>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Side {
     Left,
     Right,
@@ -341,7 +342,9 @@ fn update_airfoil_forces(
             airfoil_lift.0 = lift;
 
             match airfoil.position {
-                AirfoilPosition::WingLeft | AirfoilPosition::WingRight => {
+                AirfoilPosition::WingLeft
+                | AirfoilPosition::WingRight
+                | AirfoilPosition::Aileron(_) => {
                     external_force.add_assign(ExternalForce::at_point(
                         airfoil_global_tx.up() * lift,
                         airfoil_global_tx.translation()

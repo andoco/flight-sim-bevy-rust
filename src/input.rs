@@ -113,10 +113,10 @@ fn handle_keyboard_input(
     }
 
     if action_state.pressed(PlaneAction::RollLeft) {
-        control.ailerons = -10_f32.to_radians();
+        control.ailerons = -1_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::RollRight) {
-        control.ailerons = 10_f32.to_radians();
+        control.ailerons = 1_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::YawLeft) {
         external_force.torque = global_tx.up() * 10.;
@@ -136,14 +136,6 @@ fn handle_keyboard_input(
     if action_state.pressed(PlaneAction::ThrustDown) {
         thrust.0 -= 10.0 * time.delta_seconds();
     }
-
-    control.elevators = control
-        .elevators
-        .clamp(-45_f32.to_radians(), 45_f32.to_radians());
-
-    control.ailerons = control
-        .ailerons
-        .clamp(-45_f32.to_radians(), 45_f32.to_radians());
 
     thrust.0 = thrust.0.clamp(0., limits.thrust);
 }
@@ -177,13 +169,10 @@ fn handle_gamepad_input(
     }
 
     if action_state.pressed(PlaneAction::Pitch) {
-        control.elevators = action_state.clamped_value(PlaneAction::Pitch) * 10.0;
+        control.elevators = (action_state.clamped_value(PlaneAction::Pitch) * 10.0).to_radians();
     }
     if action_state.pressed(PlaneAction::Roll) {
-        external_force.torque += global_tx.forward()
-            * action_state.clamped_value(PlaneAction::Roll)
-            * time.delta_seconds()
-            * 20.0;
+        control.ailerons = (action_state.clamped_value(PlaneAction::Roll) * 1.0).to_radians();
     }
     if action_state.pressed(PlaneAction::Throttle) {
         thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;

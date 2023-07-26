@@ -12,7 +12,7 @@ use bevy_egui::{
 
 use crate::{
     camera::FogControl,
-    plane::{Airfoil, Airspeed, AngleOfAttack, Lift, PlaneFlight, Thrust},
+    plane::{Airfoil, Airspeed, AngleOfAttack, Lift, PlaneFlight, Side, Thrust},
     world::SunControl,
 };
 
@@ -42,6 +42,8 @@ struct HudModel {
     airspeed: f32,
     wing_left: AirfoilModel,
     wing_right: AirfoilModel,
+    aileron_left: AirfoilModel,
+    aileron_right: AirfoilModel,
     tail_wing_left: AirfoilModel,
     tail_wing_right: AirfoilModel,
     weight: f32,
@@ -111,6 +113,18 @@ fn update_hud_model(
             }
             crate::plane::AirfoilPosition::WingRight => {
                 model.wing_right = AirfoilModel {
+                    lift: *lift,
+                    aoa: aoa.to_degrees(),
+                };
+            }
+            crate::plane::AirfoilPosition::Aileron(Side::Left) => {
+                model.aileron_left = AirfoilModel {
+                    lift: *lift,
+                    aoa: aoa.to_degrees(),
+                };
+            }
+            crate::plane::AirfoilPosition::Aileron(Side::Right) => {
+                model.aileron_left = AirfoilModel {
                     lift: *lift,
                     aoa: aoa.to_degrees(),
                 };
@@ -216,6 +230,16 @@ fn update_hud_ui(
             let groups = [
                 ("wing_left", model.wing_left.lift, model.wing_left.aoa),
                 ("wing_right", model.wing_right.lift, model.wing_right.aoa),
+                (
+                    "aileron_left",
+                    model.aileron_left.lift,
+                    model.aileron_left.aoa,
+                ),
+                (
+                    "aileron_right",
+                    model.aileron_right.lift,
+                    model.aileron_right.aoa,
+                ),
                 (
                     "tail_left",
                     model.tail_wing_left.lift,
