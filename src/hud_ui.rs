@@ -40,6 +40,7 @@ struct HudModel {
     altitude: f32,
     thrust: f32,
     airspeed: f32,
+    bearing: f32,
     wing_left: AirfoilModel,
     wing_right: AirfoilModel,
     aileron_left: AirfoilModel,
@@ -102,6 +103,12 @@ fn update_hud_model(
     model.drag = flight.drag;
     model.thrust = *thrust;
     model.weight = flight.weight;
+    model.bearing = global_tx
+        .compute_transform()
+        .rotation
+        .to_euler(EulerRot::XYZ)
+        .1
+        .to_degrees();
 
     for (airfoil, AngleOfAttack(aoa), Lift(lift)) in airfoil_query.iter() {
         match airfoil.position {
@@ -224,6 +231,7 @@ fn update_hud_ui(
             float_label(ui, "airspeed", model.airspeed, normal_color);
             float_label(ui, "drag", model.drag, normal_color);
             float_label(ui, "thrust", model.thrust, normal_color);
+            float_label(ui, "bearing", model.bearing, normal_color);
         });
 
         ui.horizontal(|ui| {
