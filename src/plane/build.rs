@@ -92,9 +92,9 @@ fn build_wing(
             Collider::cuboid(width * 0.5, 0.1, length * 0.5),
         ))
         .with_children(|parent| {
-            let aileron_width = width * 0.5;
-            let aileron_height = 0.2;
-            let aileron_length = length * 0.5;
+            let aileron_width = width * 0.25;
+            let aileron_height = 0.1;
+            let aileron_length = length * 0.1;
 
             parent.spawn((
                 Aileron(side),
@@ -113,9 +113,9 @@ fn build_wing(
                     ))),
                     material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(
-                        aileron_width * 0.25 * offset,
+                        (length - aileron_width * 0.5) * offset,
                         0.0,
-                        limits.wing_offset_z + aileron_length / 2.0,
+                        limits.wing_offset_z + length / 2.0 + aileron_length / 2.0,
                     ),
                     ..default()
                 },
