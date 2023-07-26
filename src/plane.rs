@@ -238,7 +238,10 @@ fn update_ailerons(
             for child in children.iter() {
                 if let Ok((mut aileron_tx, Aileron(side))) = aileron_query.get_mut(*child) {
                     match side {
-                        _ => {
+                        Side::Left => {
+                            aileron_tx.rotation = Quat::from_rotation_x(-control.ailerons);
+                        }
+                        Side::Right => {
                             aileron_tx.rotation = Quat::from_rotation_x(control.ailerons);
                         }
                     }
