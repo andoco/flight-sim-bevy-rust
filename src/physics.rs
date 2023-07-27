@@ -5,7 +5,7 @@ pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(update_centre_of_gravity);
+        app.add_systems(Update, update_centre_of_gravity);
     }
 }
 

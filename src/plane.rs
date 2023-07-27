@@ -21,18 +21,18 @@ pub struct PlanePlugin;
 
 impl Plugin for PlanePlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup_plane)
-            .add_systems(
-                (
-                    update_airfoil_rotations,
-                    update_ailerons,
-                    update_airspeed,
-                    update_thrust_forces,
-                    update_airfoil_forces,
-                )
-                    .chain(),
+        app.add_systems(Startup, setup_plane).add_systems(
+            Update,
+            (
+                update_propellor,
+                update_airfoil_rotations,
+                update_ailerons,
+                update_airspeed,
+                update_thrust_forces,
+                update_airfoil_forces,
             )
-            .add_system(update_propellor);
+                .chain(),
+        );
     }
 }
 
@@ -386,7 +386,6 @@ fn update_airfoil_forces(
                         centre_of_gravity.global,
                     ));
                 }
-                _ => {}
             }
         }
     }

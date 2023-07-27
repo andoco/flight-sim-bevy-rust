@@ -4,9 +4,8 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup)
-            .add_system(update_fog)
-            .add_system(attach_to_follow);
+        app.add_systems(Startup, setup)
+            .add_systems(Update, (update_fog, attach_to_follow));
     }
 }
 

@@ -18,8 +18,8 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugin(FrameTimeDiagnosticsPlugin)
-        .add_plugin(WorldPlugin)
-        .add_plugin(HudUiPlugin)
+        .add_plugins(FrameTimeDiagnosticsPlugin)
+        .add_plugins(WorldPlugin)
+        .add_plugins(HudUiPlugin)
         .run();
 }

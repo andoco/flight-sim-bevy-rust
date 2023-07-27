@@ -22,19 +22,23 @@ struct Rand {
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-            .add_plugin(CameraPlugin)
-            .add_plugin(PhysicsPlugin)
-            .add_plugin(PlanePlugin)
-            .add_plugin(InputPlugin)
+        app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            .add_plugins(CameraPlugin)
+            .add_plugins(PhysicsPlugin)
+            .add_plugins(PlanePlugin)
+            .add_plugins(InputPlugin)
             .insert_resource(Rand {
                 perlin: Perlin::new(1),
             })
-            .add_startup_system(setup_lighting)
-            .add_startup_system(setup_ground)
-            .add_system(update_sun)
-            .add_system(update_block_positions)
-            .add_system(generate_infinite_buildings);
+            .add_systems(Startup, (setup_lighting, setup_ground))
+            .add_systems(
+                Update,
+                (
+                    update_sun,
+                    update_block_positions,
+                    generate_infinite_buildings,
+                ),
+            );
     }
 }
 

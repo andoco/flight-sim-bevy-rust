@@ -14,14 +14,15 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<PlaneAction>::default())
-            .add_system(add_plane_input)
-            .add_system(handle_keyboard_input)
-            .add_system(handle_gamepad_input);
+        app.add_plugins(InputManagerPlugin::<PlaneAction>::default())
+            .add_systems(
+                Update,
+                (add_plane_input, handle_keyboard_input, handle_gamepad_input),
+            );
     }
 }
 
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum PlaneAction {
     // Keyboard
     RollLeft,

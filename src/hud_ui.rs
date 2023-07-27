@@ -1,7 +1,7 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::{
-    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
     time::common_conditions::on_timer,
 };
@@ -20,11 +20,13 @@ pub struct HudUiPlugin;
 
 impl Plugin for HudUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(EguiPlugin)
-            .add_startup_system(setup)
-            .add_startup_system(setup_indicators)
-            .add_system(update_hud_ui)
-            .add_system(update_hud_model.run_if(on_timer(Duration::from_millis(100))));
+        app.add_plugins(EguiPlugin)
+            .add_systems(Startup, (setup, setup_indicators))
+            .add_systems(Update, update_hud_ui)
+            .add_systems(
+                Update,
+                update_hud_model.run_if(on_timer(Duration::from_millis(100))),
+            );
     }
 }
 
@@ -83,7 +85,7 @@ fn update_hud_model(
     plane_query: Query<(&GlobalTransform, &PlaneFlight, &Thrust, &Airspeed)>,
     airfoil_query: Query<(&Airfoil, &AngleOfAttack, &Lift)>,
     mut model_query: Query<&mut HudModel>,
-    diagnostics: Res<Diagnostics>,
+    diagnostics: Res<DiagnosticsStore>,
 ) {
     let Ok((global_tx,  flight, Thrust(thrust), Airspeed(airspeed))) = plane_query.get_single() else {
         return;
