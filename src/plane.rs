@@ -101,13 +101,6 @@ pub struct Airfoil {
 }
 
 impl Airfoil {
-    pub fn up(&self) -> Vec3 {
-        match self.position {
-            AirfoilPosition::VerticalTail => Vec3::X,
-            _ => Vec3::Y,
-        }
-    }
-
     pub fn force_base_dir(&self, global_tx: &GlobalTransform) -> Vec3 {
         match self.position {
             AirfoilPosition::VerticalTail => global_tx.right(),
