@@ -322,8 +322,6 @@ fn update_airfoil_forces(
     mut plane_query: Query<
         (
             &mut PlaneFlight,
-            &PlaneLimits,
-            &GlobalTransform,
             &Airspeed,
             &Velocity,
             &CentreOfGravity,
@@ -332,16 +330,10 @@ fn update_airfoil_forces(
         With<Plane>,
     >,
     mut airfoil_query: Query<(&Airfoil, &GlobalTransform, &mut AngleOfAttack, &mut Lift)>,
+    mut gizmos: Gizmos,
 ) {
-    for (
-        mut flight,
-        limits,
-        global_tx,
-        Airspeed(airspeed),
-        velocity,
-        centre_of_gravity,
-        mut external_force,
-    ) in plane_query.iter_mut()
+    for (mut flight, Airspeed(airspeed), velocity, centre_of_gravity, mut external_force) in
+        plane_query.iter_mut()
     {
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
@@ -361,32 +353,23 @@ fn update_airfoil_forces(
             let lift = lift_coefficient * dynamic_pressure * airfoil.area;
             airfoil_lift.0 = lift;
 
-            match airfoil.position {
-                AirfoilPosition::WingLeft
-                | AirfoilPosition::WingRight
-                | AirfoilPosition::Aileron(_)
-                | AirfoilPosition::VerticalTail => {
-                    external_force.add_assign(ExternalForce::at_point(
-                        airfoil.force_base_dir(airfoil_global_tx) * lift,
-                        airfoil_global_tx.translation()
-                            + global_tx.forward() * limits.wing_offset_z,
-                        centre_of_gravity.global,
-                    ));
+            external_force.add_assign(ExternalForce::at_point(
+                airfoil.force_base_dir(airfoil_global_tx) * lift,
+                airfoil_global_tx.translation(),
+                centre_of_gravity.global,
+            ));
 
-                    let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
-                    let drag = drag_coefficient * dynamic_pressure * airfoil.area;
-                    external_force.force += -velocity.linvel.normalize_or_zero() * drag;
+            let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
+            let drag = drag_coefficient * dynamic_pressure * airfoil.area;
+            external_force.force += -velocity.linvel.normalize_or_zero() * drag;
 
-                    flight.drag = drag;
-                }
-                AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
-                    external_force.add_assign(ExternalForce::at_point(
-                        airfoil_global_tx.up() * lift,
-                        airfoil_global_tx.translation(),
-                        centre_of_gravity.global,
-                    ));
-                }
-            }
+            flight.drag = drag;
+
+            gizmos.line(
+                airfoil_global_tx.translation(),
+                airfoil_global_tx.translation() + airfoil.force_base_dir(airfoil_global_tx) * lift,
+                Color::YELLOW,
+            );
         }
     }
 }

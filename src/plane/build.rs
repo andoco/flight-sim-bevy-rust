@@ -153,12 +153,18 @@ pub fn build_vertical_tail(
     color: Color,
     size: Vec3,
 ) {
+    let lift_coefficient_curve = Linear::builder()
+        .elements([-0.0, -0.25, 0.0, 0.0, 0.0, 0.25, 0.0])
+        .knots([-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0])
+        .build()
+        .unwrap();
+
     parent.spawn((
         VerticalTailWing,
         Airfoil {
             position: AirfoilPosition::VerticalTail,
             area: size.y * size.z,
-            lift_coefficient_samples: iter::repeat(0.0).take(180).collect(),
+            lift_coefficient_samples: lift_coefficient_curve.take(180).collect(),
         },
         AngleOfAttack::default(),
         Lift::default(),
