@@ -30,6 +30,7 @@ pub fn build_fuselage(
             limits.fuselage.y * 0.5,
             limits.fuselage.z * 0.5,
         ),
+        ColliderMassProperties::Density(2.0),
     ));
 }
 
