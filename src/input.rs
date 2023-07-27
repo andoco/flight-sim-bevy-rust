@@ -118,10 +118,10 @@ fn handle_keyboard_input(
         control.ailerons = 1_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::YawLeft) {
-        control.rudder = -1_f32.to_radians();
+        control.rudder = -10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::YawRight) {
-        control.rudder = 1_f32.to_radians();
+        control.rudder = 10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::PitchUp) {
         control.elevators = 10_f32.to_radians();

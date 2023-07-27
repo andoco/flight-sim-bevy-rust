@@ -220,8 +220,8 @@ fn setup_plane(
         });
 }
 
-fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3, up: Vec3) -> f32 {
-    let a1 = up.angle_between(global_tx.forward());
+fn angle_of_attack(velocity: Vec3, up: Vec3, forward: Vec3) -> f32 {
+    let a1 = up.angle_between(forward);
     let a2 = up.angle_between(velocity.normalize());
 
     a2 - a1
@@ -339,8 +339,12 @@ fn update_airfoil_forces(
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
 
         for (airfoil, airfoil_global_tx, mut aoa, mut airfoil_lift) in airfoil_query.iter_mut() {
-            let angle_of_attack =
-                angle_of_attack_signed(airfoil_global_tx, velocity.linvel, airfoil.up());
+            let angle_of_attack = angle_of_attack(
+                velocity.linvel,
+                airfoil.force_base_dir(airfoil_global_tx),
+                airfoil_global_tx.forward(),
+            );
+
             aoa.0 = angle_of_attack;
 
             let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;

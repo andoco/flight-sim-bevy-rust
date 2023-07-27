@@ -154,7 +154,7 @@ pub fn build_vertical_tail(
     size: Vec3,
 ) {
     let lift_coefficient_curve = Linear::builder()
-        .elements([-0.0, -0.25, 0.0, 0.0, 0.0, 0.25, 0.0])
+        .elements([-0.0, -0.01, 0.0, 0.0, 0.0, 0.01, 0.0])
         .knots([-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0])
         .build()
         .unwrap();
@@ -171,11 +171,7 @@ pub fn build_vertical_tail(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(size.x, size.y, size.z))),
             material: materials.add(color.into()),
-            transform: Transform::from_xyz(
-                0.,
-                limits.fuselage.y * 0.5 + size.y * 0.5,
-                limits.fuselage.z * 0.5 - size.z * 0.5,
-            ),
+            transform: Transform::from_xyz(0., 0., limits.fuselage.z * 0.5 - size.z * 0.5),
             ..default()
         },
         // Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
