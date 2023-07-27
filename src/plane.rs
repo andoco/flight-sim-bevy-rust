@@ -14,7 +14,8 @@ use crate::{
 };
 
 use self::build::{
-    build_fuselage, build_horizontal_tails, build_propellor, build_vertical_tail, build_wings,
+    build_fuselage, build_horizontal_tails, build_propellor, build_tail, build_vertical_tail,
+    build_wings,
 };
 
 pub struct PlanePlugin;
@@ -43,6 +44,7 @@ pub struct Plane;
 pub struct PlaneLimits {
     pub thrust: f32,
     pub fuselage: Vec3,
+    pub tail: Vec3,
     pub wings: Vec2,
     pub wing_offset_z: f32,
     pub lift_coefficient_samples: Vec<f32>,
@@ -145,7 +147,8 @@ fn setup_plane(
 
     let limits = PlaneLimits {
         thrust: 150.0,
-        fuselage: Vec3::new(1.12, 2.0, 8.3),
+        fuselage: Vec3::new(1.12, 2.0, 5.3),
+        tail: Vec3::new(0.25, 0.25, 3.0),
         wings: Vec2::new(11.0, 1.5),
         wing_offset_z: -0.0,
         lift_coefficient_samples: lift_coefficient_samples.clone(),
@@ -198,7 +201,9 @@ fn setup_plane(
                 wing_color,
             );
 
-            let tail_size = Vec3::new(0.2, limits.fuselage.y, limits.fuselage.y);
+            build_tail(parent, &mut meshes, &mut materials, &limits, fuselage_color);
+
+            let tail_size = Vec3::new(0.2, limits.fuselage.y * 0.5, limits.fuselage.y * 0.5);
 
             build_vertical_tail(
                 parent,

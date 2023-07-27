@@ -117,6 +117,11 @@ fn build_wing(
                     ),
                     ..default()
                 },
+                Collider::cuboid(
+                    aileron_width * 0.5,
+                    aileron_height * 0.5,
+                    aileron_length * 0.5,
+                ),
             ));
         });
 }
@@ -128,18 +133,44 @@ pub fn build_propellor(
     limits: &PlaneLimits,
     propellor_color: Color,
 ) {
+    let size = Vec3::new(limits.fuselage.x * 2.5, 0.4, 0.1);
+
     parent.spawn((
         Propellor,
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(
-                limits.fuselage.x * 2.5,
-                0.4,
-                0.1,
-            ))),
+            mesh: meshes.add(Mesh::from(shape::Box::new(size.x, size.y, size.z))),
             material: materials.add(propellor_color.into()),
             transform: Transform::from_xyz(0.0, 0.0, -limits.fuselage.z * 0.5),
             ..default()
         },
+        Collider::cuboid(size.x * 0.5, size.y * 0.5, size.z * 0.5),
+    ));
+}
+
+pub fn build_tail(
+    parent: &mut ChildBuilder<'_, '_, '_>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    limits: &PlaneLimits,
+    color: Color,
+) {
+    parent.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Box::new(
+                limits.tail.x,
+                limits.tail.y,
+                limits.tail.z,
+            ))),
+            transform: Transform::from_xyz(0.0, 0.0, limits.fuselage.z / 2.0 + limits.tail.z / 2.0),
+            material: materials.add(color.into()),
+            ..default()
+        },
+        Friction::new(0.01),
+        Collider::cuboid(
+            limits.tail.x * 0.5,
+            limits.tail.y * 0.5,
+            limits.tail.z * 0.5,
+        ),
     ));
 }
 
@@ -169,10 +200,14 @@ pub fn build_vertical_tail(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(size.x, size.y, size.z))),
             material: materials.add(color.into()),
-            transform: Transform::from_xyz(0., 0., limits.fuselage.z * 0.5 - size.z * 0.5),
+            transform: Transform::from_xyz(
+                0.,
+                limits.tail.y * 0.5 + size.y * 0.5,
+                limits.fuselage.z * 0.5 + limits.tail.z - size.z * 0.5,
+            ),
             ..default()
         },
-        // Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
+        Collider::cuboid(size.x * 0.5, size.y * 0.5, size.z * 0.5),
     ));
 }
 
@@ -193,9 +228,9 @@ pub fn build_horizontal_tails(
         (AirfoilPosition::HorizontalTailLeft, Side::Left),
         (AirfoilPosition::HorizontalTailRight, Side::Right),
     ] {
-        let tail_width = 1.0;
-        let tail_height = 0.1;
-        let tail_length = 0.7;
+        let width = 2.0;
+        let height = 0.1;
+        let length = 0.7;
 
         let offset = match position {
             AirfoilPosition::HorizontalTailLeft => -1.0,
@@ -207,26 +242,22 @@ pub fn build_horizontal_tails(
             HorizontalTailWing(side),
             Airfoil {
                 position,
-                area: tail_width * tail_length,
+                area: width * length,
                 lift_coefficient_samples: tail_wing_lift_coefficient_curve.take(180).collect(),
             },
             AngleOfAttack::default(),
             Lift::default(),
             PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Box::new(
-                    tail_width,
-                    tail_height,
-                    tail_length,
-                ))),
+                mesh: meshes.add(Mesh::from(shape::Box::new(width, height, length))),
                 material: materials.add(color.into()),
                 transform: Transform::from_xyz(
-                    (limits.fuselage.x * 0.5 + tail_width * 0.5) * offset,
+                    (limits.tail.x * 0.5 + width * 0.5) * offset,
                     0.0,
-                    limits.fuselage.z * 0.5 - tail_length * 0.5,
+                    limits.fuselage.z * 0.5 + limits.tail.z - length * 0.5,
                 ),
                 ..default()
             },
-            // Collider::cuboid(tail_width * 0.5, tail_height * 0.5, tail_length * 0.5),
+            Collider::cuboid(width * 0.5, height * 0.5, length * 0.5),
         ));
     }
 }
