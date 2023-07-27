@@ -88,9 +88,7 @@ fn handle_keyboard_input(
     mut query: Query<
         (
             &ActionState<PlaneAction>,
-            &GlobalTransform,
             &PlaneLimits,
-            &mut ExternalForce,
             &mut PlaneControl,
             &mut Thrust,
         ),
@@ -98,7 +96,7 @@ fn handle_keyboard_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((action_state, global_tx, limits, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
+    let Ok((action_state,  limits,   mut control, mut thrust)) = query.get_single_mut() else {
         return
     };
 
@@ -119,10 +117,10 @@ fn handle_keyboard_input(
         control.ailerons = 1_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::YawLeft) {
-        external_force.torque = global_tx.up() * 10.;
+        control.rudder = -1_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::YawRight) {
-        external_force.torque = global_tx.up() * -10.;
+        control.rudder = 1_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::PitchUp) {
         control.elevators = 10_f32.to_radians();
@@ -146,7 +144,6 @@ fn handle_gamepad_input(
         (
             Entity,
             &ActionState<PlaneAction>,
-            &GlobalTransform,
             &PlaneLimits,
             &mut ExternalForce,
             &mut PlaneControl,
@@ -156,7 +153,7 @@ fn handle_gamepad_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((entity, action_state, global_tx, limits, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
+    let Ok((entity, action_state,  limits, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
         return
     };
 
@@ -179,10 +176,7 @@ fn handle_gamepad_input(
         thrust.0 = thrust.0.clamp(0., limits.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
-        external_force.torque += global_tx.up()
-            * -action_state.clamped_value(PlaneAction::Rudder)
-            * time.delta_seconds()
-            * 10.0;
+        control.rudder = (action_state.clamped_value(PlaneAction::Rudder) * 1.0).to_radians();
     }
 
     if action_state.just_pressed(PlaneAction::FollowAbove) {

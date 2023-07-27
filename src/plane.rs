@@ -100,6 +100,22 @@ pub struct Airfoil {
     pub lift_coefficient_samples: Vec<f32>,
 }
 
+impl Airfoil {
+    pub fn up(&self) -> Vec3 {
+        match self.position {
+            AirfoilPosition::VerticalTail => Vec3::X,
+            _ => Vec3::Y,
+        }
+    }
+
+    pub fn force_base_dir(&self, global_tx: &GlobalTransform) -> Vec3 {
+        match self.position {
+            AirfoilPosition::VerticalTail => global_tx.right(),
+            _ => global_tx.up(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Side {
     Left,
@@ -204,9 +220,9 @@ fn setup_plane(
         });
 }
 
-fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3) -> f32 {
-    let a1 = Vec3::Y.angle_between(global_tx.forward());
-    let a2 = Vec3::Y.angle_between(velocity.normalize());
+fn angle_of_attack_signed(global_tx: &GlobalTransform, velocity: Vec3, up: Vec3) -> f32 {
+    let a1 = up.angle_between(global_tx.forward());
+    let a2 = up.angle_between(velocity.normalize());
 
     a2 - a1
 }
@@ -221,6 +237,9 @@ fn update_airfoil_rotations(
                 match airfoil.position {
                     AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
                         airfoil_tx.rotation = Quat::from_rotation_x(control.elevators);
+                    }
+                    AirfoilPosition::VerticalTail => {
+                        airfoil_tx.rotation = Quat::from_rotation_y(control.rudder);
                     }
                     _ => {}
                 }
@@ -328,7 +347,8 @@ fn update_airfoil_forces(
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
 
         for (airfoil, airfoil_global_tx, mut aoa, mut airfoil_lift) in airfoil_query.iter_mut() {
-            let angle_of_attack = angle_of_attack_signed(airfoil_global_tx, velocity.linvel);
+            let angle_of_attack =
+                angle_of_attack_signed(airfoil_global_tx, velocity.linvel, airfoil.up());
             aoa.0 = angle_of_attack;
 
             let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
@@ -344,9 +364,10 @@ fn update_airfoil_forces(
             match airfoil.position {
                 AirfoilPosition::WingLeft
                 | AirfoilPosition::WingRight
-                | AirfoilPosition::Aileron(_) => {
+                | AirfoilPosition::Aileron(_)
+                | AirfoilPosition::VerticalTail => {
                     external_force.add_assign(ExternalForce::at_point(
-                        airfoil_global_tx.up() * lift,
+                        airfoil.force_base_dir(airfoil_global_tx) * lift,
                         airfoil_global_tx.translation()
                             + global_tx.forward() * limits.wing_offset_z,
                         centre_of_gravity.global,
