@@ -15,10 +15,8 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(InputManagerPlugin::<PlaneAction>::default())
-            .add_systems(
-                Update,
-                (add_plane_input, handle_keyboard_input, handle_gamepad_input),
-            );
+            .add_systems(Startup, add_plane_input)
+            .add_systems(Update, (handle_keyboard_input, handle_gamepad_input));
     }
 }
 
@@ -46,61 +44,55 @@ pub enum PlaneAction {
     FollowInside,
 }
 
-fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
-    if let Some(entity) = query.get_single().ok() {
-        commands
-            .entity(entity)
-            .insert(InputManagerBundle::<PlaneAction> {
-                action_state: ActionState::default(),
-                input_map: InputMap::default()
-                    .insert(KeyCode::Up, PlaneAction::PitchUp)
-                    .insert(KeyCode::Down, PlaneAction::PitchDown)
-                    .insert(KeyCode::Left, PlaneAction::RollLeft)
-                    .insert(KeyCode::Right, PlaneAction::RollRight)
-                    .insert(KeyCode::Q, PlaneAction::YawLeft)
-                    .insert(KeyCode::W, PlaneAction::YawRight)
-                    .insert(KeyCode::A, PlaneAction::ThrustUp)
-                    .insert(KeyCode::Z, PlaneAction::ThrustDown)
-                    .insert(KeyCode::F1, PlaneAction::FollowBehind)
-                    .insert(KeyCode::F2, PlaneAction::FollowAbove)
-                    .insert(KeyCode::F3, PlaneAction::FollowInside)
-                    .insert(
-                        SingleAxis::symmetric(GamepadAxisType::LeftStickY, 0.25),
-                        PlaneAction::Pitch,
-                    )
-                    .insert(
-                        SingleAxis::symmetric(GamepadAxisType::LeftStickX, 0.25),
-                        PlaneAction::Roll,
-                    )
-                    .insert(
-                        SingleAxis::symmetric(GamepadAxisType::RightStickY, 0.25),
-                        PlaneAction::Throttle,
-                    )
-                    .insert(
-                        SingleAxis::symmetric(GamepadAxisType::RightStickX, 0.25),
-                        PlaneAction::Rudder,
-                    )
-                    .insert(GamepadButtonType::DPadDown, PlaneAction::FollowBehind)
-                    .insert(GamepadButtonType::DPadUp, PlaneAction::FollowAbove)
-                    .insert(GamepadButtonType::DPadLeft, PlaneAction::FollowInside)
-                    .build(),
-            });
-    }
+fn add_plane_input(mut commands: Commands) {
+    info!("Adding input");
+
+    commands.spawn(InputManagerBundle::<PlaneAction> {
+        action_state: ActionState::default(),
+        input_map: InputMap::default()
+            .insert(KeyCode::Up, PlaneAction::PitchUp)
+            .insert(KeyCode::Down, PlaneAction::PitchDown)
+            .insert(KeyCode::Left, PlaneAction::RollLeft)
+            .insert(KeyCode::Right, PlaneAction::RollRight)
+            .insert(KeyCode::Q, PlaneAction::YawLeft)
+            .insert(KeyCode::W, PlaneAction::YawRight)
+            .insert(KeyCode::A, PlaneAction::ThrustUp)
+            .insert(KeyCode::Z, PlaneAction::ThrustDown)
+            .insert(KeyCode::F1, PlaneAction::FollowBehind)
+            .insert(KeyCode::F2, PlaneAction::FollowAbove)
+            .insert(KeyCode::F3, PlaneAction::FollowInside)
+            .insert(
+                SingleAxis::symmetric(GamepadAxisType::LeftStickY, 0.25),
+                PlaneAction::Pitch,
+            )
+            .insert(
+                SingleAxis::symmetric(GamepadAxisType::LeftStickX, 0.25),
+                PlaneAction::Roll,
+            )
+            .insert(
+                SingleAxis::symmetric(GamepadAxisType::RightStickY, 0.25),
+                PlaneAction::Throttle,
+            )
+            .insert(
+                SingleAxis::symmetric(GamepadAxisType::RightStickX, 0.25),
+                PlaneAction::Rudder,
+            )
+            .insert(GamepadButtonType::DPadDown, PlaneAction::FollowBehind)
+            .insert(GamepadButtonType::DPadUp, PlaneAction::FollowAbove)
+            .insert(GamepadButtonType::DPadLeft, PlaneAction::FollowInside)
+            .build(),
+    });
 }
 
 fn handle_keyboard_input(
-    mut query: Query<
-        (
-            &ActionState<PlaneAction>,
-            &PlaneSpec,
-            &mut PlaneControl,
-            &mut Thrust,
-        ),
-        With<Plane>,
-    >,
+    mut action_query: Query<&ActionState<PlaneAction>>,
+    mut plane_query: Query<(&PlaneSpec, &mut PlaneControl, &mut Thrust), With<Plane>>,
     time: Res<Time>,
 ) {
-    let Ok((action_state,  spec,   mut control, mut thrust)) = query.get_single_mut() else {
+    let Ok(action_state  ) = action_query.get_single_mut() else {
+        return
+    };
+    let Ok((spec, mut control, mut thrust)) = plane_query.get_single_mut() else {
         return
     };
 
@@ -144,10 +136,10 @@ fn handle_keyboard_input(
 
 fn handle_gamepad_input(
     mut commands: Commands,
-    mut query: Query<
+    mut action_query: Query<&ActionState<PlaneAction>>,
+    mut plane_query: Query<
         (
             Entity,
-            &ActionState<PlaneAction>,
             &PlaneSpec,
             &mut ExternalForce,
             &mut PlaneControl,
@@ -157,7 +149,10 @@ fn handle_gamepad_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((entity, action_state,  spec, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
+    let Ok(action_state  ) = action_query.get_single_mut() else {
+        return
+    };
+    let Ok((entity, spec, mut external_force,  mut control, mut thrust)) = plane_query.get_single_mut() else {
         return
     };
 

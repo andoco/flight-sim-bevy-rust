@@ -120,8 +120,6 @@ fn update_block_positions(
         let px = position.x as i32 / SPACING;
         let pz = position.z as i32 / SPACING;
 
-        // info!("px={}, pz={}", px, pz);
-
         if px != *x || pz != *z {
             commands.entity(entity).insert(BlockPos(px, pz));
         }
@@ -167,7 +165,6 @@ fn generate_infinite_buildings(
                 num_misses += 1;
 
                 let height = (100.0 * n) as f32;
-                info!("x={}, z={}, n={}", x, z, n);
                 let side = MAX_SIDE;
 
                 let building_pos =

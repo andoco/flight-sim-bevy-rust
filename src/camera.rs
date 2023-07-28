@@ -22,37 +22,6 @@ pub enum FollowKind {
 }
 
 fn setup(mut commands: Commands) {
-    commands
-        .spawn((
-            Camera3dBundle {
-                camera_3d: Camera3d {
-                    clear_color: ClearColorConfig::Custom(Color::rgb(0.5, 0.5, 0.8)),
-                    ..default()
-                },
-                camera: Camera {
-                    order: 0,
-                    ..default()
-                },
-                ..default()
-            },
-            FogSettings {
-                color: Color::rgba(0.1, 0.2, 0.4, 1.0),
-                directional_light_color: Color::rgba(1.0, 0.95, 0.75, 0.5),
-                directional_light_exponent: 30.0,
-                falloff: FogFalloff::from_visibility_colors(
-                    1500.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
-                    Color::rgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
-                    Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
-                ),
-            },
-            FogControl {
-                visibility: 1500.0,
-                extinction_color: Color::rgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
-                inscattering_color: Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
-            },
-        ))
-        .insert(MainCamera);
-
     commands.spawn(Camera2dBundle {
         camera_2d: Camera2d {
             clear_color: ClearColorConfig::None,
@@ -86,19 +55,14 @@ fn update_fog(mut query: Query<(&mut FogSettings, &FogControl), Changed<FogContr
     fog_settings.falloff = new_falloff;
 }
 
-fn attach_to_follow(
-    mut commands: Commands,
-    follow_query: Query<(Entity, &Follow), Changed<Follow>>,
-    mut camera_query: Query<(Entity, &mut Transform), With<MainCamera>>,
-) {
+fn attach_to_follow(mut commands: Commands, follow_query: Query<(Entity, &Follow), Added<Follow>>) {
     let Ok((follow_entity, Follow(follow_kind))) = follow_query.get_single() else {
         return;
     };
-    let Ok((camera_entity, mut camera_tx)) = camera_query.get_single_mut() else {
-        return;
-    };
 
-    commands.entity(camera_entity).set_parent(follow_entity);
+    info!("Creating follow camera");
+
+    let mut camera_tx = Transform::default();
 
     match follow_kind {
         FollowKind::Behind => {
@@ -117,4 +81,39 @@ fn attach_to_follow(
             camera_tx.rotation = Quat::default();
         }
     };
+
+    commands
+        .spawn((
+            MainCamera,
+            Camera3dBundle {
+                camera_3d: Camera3d {
+                    clear_color: ClearColorConfig::Custom(Color::rgb(0.5, 0.5, 0.8)),
+                    ..default()
+                },
+                camera: Camera {
+                    order: 0,
+                    ..default()
+                },
+                transform: camera_tx,
+                ..default()
+            },
+            FogSettings {
+                color: Color::rgba(0.1, 0.2, 0.4, 1.0),
+                directional_light_color: Color::rgba(1.0, 0.95, 0.75, 0.5),
+                directional_light_exponent: 30.0,
+                falloff: FogFalloff::from_visibility_colors(
+                    1500.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
+                    Color::rgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
+                    Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
+                ),
+            },
+            FogControl {
+                visibility: 1500.0,
+                extinction_color: Color::rgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
+                inscattering_color: Color::rgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
+            },
+        ))
+        .set_parent(follow_entity);
+
+    info!("Following {:?}", follow_entity);
 }

@@ -12,7 +12,7 @@ use bevy_egui::{
 
 use crate::{
     camera::FogControl,
-    plane::{Airfoil, Airspeed, AngleOfAttack, Lift, PlaneFlight, Side, Thrust},
+    plane::{Airfoil, Airspeed, AngleOfAttack, BuildPlaneEvent, Lift, PlaneFlight, Side, Thrust},
     world::SunControl,
 };
 
@@ -160,6 +160,7 @@ fn update_hud_ui(
     mut model_query: Query<&mut HudModel>,
     mut fog_control: Query<&mut FogControl>,
     mut sun_control: Query<&mut SunControl>,
+    mut build_plane_event: EventWriter<BuildPlaneEvent>,
 ) {
     let Ok(mut model) = model_query.get_single_mut() else {
         return;
@@ -222,6 +223,11 @@ fn update_hud_ui(
         });
 
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        if ui.button("Restart").clicked() {
+            info!("Restart");
+            build_plane_event.send(BuildPlaneEvent);
+        }
+
         ui.horizontal(|ui| {
             if ui.button("Environment").clicked() {
                 model.show_environment = !model.show_environment;

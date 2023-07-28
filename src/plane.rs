@@ -15,21 +15,26 @@ pub struct PlanePlugin;
 
 impl Plugin for PlanePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_plane).add_systems(
-            Update,
-            (
-                build::build_plane,
-                update_propellor,
-                update_airfoil_rotations,
-                update_ailerons,
-                update_airspeed,
-                update_thrust_forces,
-                update_airfoil_forces,
-            )
-                .chain(),
-        );
+        app.add_event::<BuildPlaneEvent>()
+            .add_systems(Startup, (setup_plane, apply_deferred).chain())
+            .add_systems(
+                Update,
+                (
+                    (build_plane, build::build_plane).chain(),
+                    update_propellor,
+                    update_airfoil_rotations,
+                    update_ailerons,
+                    update_airspeed,
+                    update_thrust_forces,
+                    update_airfoil_forces,
+                )
+                    .chain(),
+            );
     }
 }
+
+#[derive(Event)]
+pub struct BuildPlaneEvent;
 
 #[derive(Component)]
 pub struct Plane;
@@ -116,8 +121,24 @@ pub struct Propellor;
 #[derive(Component)]
 pub struct Aileron(Side);
 
-fn setup_plane(mut commands: Commands) {
-    commands.spawn(PlaneSpec::new("Test plane"));
+fn setup_plane(mut build_plane_event: EventWriter<BuildPlaneEvent>) {
+    build_plane_event.send(BuildPlaneEvent);
+}
+
+fn build_plane(
+    mut commands: Commands,
+    plane_query: Query<Entity, With<Plane>>,
+    mut build_plane_event: EventReader<BuildPlaneEvent>,
+) {
+    for _ in build_plane_event.iter() {
+        if let Ok(entity) = plane_query.get_single() {
+            info!("Removing existing plane");
+            commands.entity(entity).despawn_recursive();
+        }
+
+        info!("Building plane");
+        commands.spawn(PlaneSpec::new("Test plane"));
+    }
 }
 
 fn angle_of_attack(velocity: Vec3, up: Vec3, forward: Vec3) -> f32 {
