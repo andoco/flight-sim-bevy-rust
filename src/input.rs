@@ -7,7 +7,7 @@ use leafwing_input_manager::{
 
 use crate::{
     camera::{self, Follow},
-    plane::{Plane, PlaneControl, PlaneLimits, Thrust},
+    plane::{spec::PlaneSpec, Plane, PlaneControl, Thrust},
 };
 
 pub struct InputPlugin;
@@ -61,6 +61,9 @@ fn add_plane_input(mut commands: Commands, query: Query<Entity, Added<Plane>>) {
                     .insert(KeyCode::W, PlaneAction::YawRight)
                     .insert(KeyCode::A, PlaneAction::ThrustUp)
                     .insert(KeyCode::Z, PlaneAction::ThrustDown)
+                    .insert(KeyCode::F1, PlaneAction::FollowBehind)
+                    .insert(KeyCode::F2, PlaneAction::FollowAbove)
+                    .insert(KeyCode::F3, PlaneAction::FollowInside)
                     .insert(
                         SingleAxis::symmetric(GamepadAxisType::LeftStickY, 0.25),
                         PlaneAction::Pitch,
@@ -89,7 +92,7 @@ fn handle_keyboard_input(
     mut query: Query<
         (
             &ActionState<PlaneAction>,
-            &PlaneLimits,
+            &PlaneSpec,
             &mut PlaneControl,
             &mut Thrust,
         ),
@@ -97,7 +100,7 @@ fn handle_keyboard_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((action_state,  limits,   mut control, mut thrust)) = query.get_single_mut() else {
+    let Ok((action_state,  spec,   mut control, mut thrust)) = query.get_single_mut() else {
         return
     };
 
@@ -136,7 +139,7 @@ fn handle_keyboard_input(
         thrust.0 -= 10.0 * time.delta_seconds();
     }
 
-    thrust.0 = thrust.0.clamp(0., limits.thrust);
+    thrust.0 = thrust.0.clamp(0., spec.thrust);
 }
 
 fn handle_gamepad_input(
@@ -145,7 +148,7 @@ fn handle_gamepad_input(
         (
             Entity,
             &ActionState<PlaneAction>,
-            &PlaneLimits,
+            &PlaneSpec,
             &mut ExternalForce,
             &mut PlaneControl,
             &mut Thrust,
@@ -154,7 +157,7 @@ fn handle_gamepad_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok((entity, action_state,  limits, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
+    let Ok((entity, action_state,  spec, mut external_force,  mut control, mut thrust)) = query.get_single_mut() else {
         return
     };
 
@@ -174,7 +177,7 @@ fn handle_gamepad_input(
     }
     if action_state.pressed(PlaneAction::Throttle) {
         thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;
-        thrust.0 = thrust.0.clamp(0., limits.thrust);
+        thrust.0 = thrust.0.clamp(0., spec.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
         control.rudder = (action_state.clamped_value(PlaneAction::Rudder) * 1.0).to_radians();

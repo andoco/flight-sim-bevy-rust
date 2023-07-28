@@ -1,35 +1,109 @@
-use bevy::prelude::*;
+use bevy::{math::vec3, prelude::*};
 use bevy_rapier3d::prelude::*;
-use enterpolation::{linear::Linear, Curve};
+
+use crate::{
+    camera,
+    physics::CentreOfGravity,
+    world::{self, BlockPos},
+};
 
 use super::{
-    Aileron, Airfoil, AirfoilPosition, AngleOfAttack, HorizontalTailWing, Lift, PlaneLimits,
-    Propellor, Side, VerticalTailWing, Wing,
+    spec::{FuselageSpec, PlaneSpec, TailSpec, WingSpec},
+    Aileron, Airfoil, AirfoilPosition, Airspeed, Altitude, AngleOfAttack, HorizontalTailWing, Lift,
+    Plane, PlaneControl, PlaneFlight, Propellor, Side, Thrust, VerticalTailWing, Wing,
 };
+
+pub fn build_plane(
+    mut commands: Commands,
+    plane_query: Query<(Entity, &PlaneSpec), Added<PlaneSpec>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, plane) in plane_query.iter() {
+        let metal_color = Color::hex("d5d5d7").unwrap();
+        let fuselage_color = Color::rgb(1.0, 0.0, 0.0);
+        let propellor_color = metal_color;
+        let wing_color = metal_color;
+
+        commands
+            .entity(entity)
+            .insert((
+                Plane,
+                PlaneControl::default(),
+                PlaneFlight::default(),
+                CentreOfGravity::default(),
+                Thrust(0.0),
+                Airspeed::default(),
+                Altitude::default(),
+                SpatialBundle::from_transform(Transform::from_xyz(
+                    world::SPACING as f32 * 0.5,
+                    1.5,
+                    0.,
+                )),
+                RigidBody::Dynamic,
+                Velocity::zero(),
+                ExternalForce::default(),
+                ReadMassProperties::default(),
+                camera::Follow(camera::FollowKind::Behind),
+                BlockPos(0, 0),
+            ))
+            .with_children(|parent| {
+                build_fuselage(
+                    parent,
+                    &mut meshes,
+                    &mut materials,
+                    &plane.fuselage,
+                    fuselage_color,
+                );
+
+                build_propellor(
+                    parent,
+                    &mut meshes,
+                    &mut materials,
+                    &plane.fuselage,
+                    propellor_color,
+                );
+
+                build_wings(
+                    parent,
+                    &mut meshes,
+                    &mut materials,
+                    vec3(0., 0., 0.0),
+                    &plane.wings,
+                    wing_color,
+                );
+
+                build_tail(
+                    parent,
+                    &mut meshes,
+                    &mut materials,
+                    vec3(0., 0., plane.fuselage.size.z / 2.0),
+                    &plane.tail,
+                    fuselage_color,
+                );
+            });
+    }
+}
 
 pub fn build_fuselage(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
+    spec: &FuselageSpec,
     fuselage_color: Color,
 ) {
     parent.spawn((
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(
-                limits.fuselage.x,
-                limits.fuselage.y,
-                limits.fuselage.z,
+                spec.size.x,
+                spec.size.y,
+                spec.size.z,
             ))),
             material: materials.add(fuselage_color.into()),
             ..default()
         },
         Friction::new(0.01),
-        Collider::cuboid(
-            limits.fuselage.x * 0.5,
-            limits.fuselage.y * 0.5,
-            limits.fuselage.z * 0.5,
-        ),
+        Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
         ColliderMassProperties::Density(2.0),
     ));
 }
@@ -38,17 +112,20 @@ pub fn build_wings(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
-    lift_coefficient_samples: &Vec<f32>,
+    pos: Vec3,
+    spec: &WingSpec,
     wing_color: Color,
 ) {
+    let lift_coefficient_samples = spec.lift_coefficient_samples();
+
     [Side::Left, Side::Right].iter().for_each(|side| {
         build_wing(
             parent,
             meshes,
             materials,
-            limits,
-            lift_coefficient_samples,
+            pos,
+            spec,
+            &lift_coefficient_samples,
             wing_color,
             *side,
         );
@@ -59,7 +136,8 @@ fn build_wing(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
+    pos: Vec3,
+    spec: &WingSpec,
     lift_coefficient_samples: &Vec<f32>,
     wing_color: Color,
     side: Side,
@@ -69,31 +147,34 @@ fn build_wing(
         Side::Right => (AirfoilPosition::WingRight, -1.0),
     };
 
-    let width = limits.wings.x * 0.5;
-    let length = limits.wings.y;
-
     parent
         .spawn((
             Wing(side),
             Airfoil {
                 position,
-                area: width * length,
+                area: spec.size.x * spec.size.z,
                 lift_coefficient_samples: lift_coefficient_samples.clone(),
             },
             AngleOfAttack::default(),
             Lift::default(),
             PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Box::new(width, 0.2, length))),
+                mesh: meshes.add(Mesh::from(shape::Box::new(
+                    spec.size.x,
+                    spec.size.y,
+                    spec.size.z,
+                ))),
                 material: materials.add(wing_color.into()),
-                transform: Transform::from_xyz(width * 0.5 * offset, 0.0, limits.wing_offset_z),
+                transform: Transform::from_translation(
+                    pos + vec3(spec.size.x * 0.5 * offset, 0.0, 0.0),
+                ),
                 ..default()
             },
-            Collider::cuboid(width * 0.5, 0.1, length * 0.5),
+            Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
         ))
         .with_children(|parent| {
-            let aileron_width = width * 0.25;
-            let aileron_height = 0.1;
-            let aileron_length = length * 0.1;
+            let aileron_width = spec.size.x * 0.25;
+            let aileron_height = spec.size.y;
+            let aileron_length = spec.size.z * 0.1;
 
             parent.spawn((
                 Aileron(side),
@@ -112,9 +193,9 @@ fn build_wing(
                     ))),
                     material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(
-                        (length - aileron_width * 0.5) * offset,
+                        (spec.size.x * 0.5 - aileron_width * 0.5) * offset,
                         0.0,
-                        limits.wing_offset_z + length / 2.0 + aileron_length / 2.0,
+                        spec.size.z / 2.0 + aileron_length / 2.0,
                     ),
                     ..default()
                 },
@@ -131,17 +212,17 @@ pub fn build_propellor(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
+    spec: &FuselageSpec,
     propellor_color: Color,
 ) {
-    let size = Vec3::new(limits.fuselage.x * 2.5, 0.4, 0.1);
+    let size = Vec3::new(spec.size.x * 2.5, 0.4, 0.1);
 
     parent.spawn((
         Propellor,
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(size.x, size.y, size.z))),
             material: materials.add(propellor_color.into()),
-            transform: Transform::from_xyz(0.0, 0.0, -limits.fuselage.z * 0.5),
+            transform: Transform::from_xyz(0.0, 0.0, -spec.size.z * 0.5),
             ..default()
         },
         Collider::cuboid(size.x * 0.5, size.y * 0.5, size.z * 0.5),
@@ -152,63 +233,80 @@ pub fn build_tail(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
+    pos: Vec3,
+    spec: &TailSpec,
     color: Color,
 ) {
     parent.spawn((
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box::new(
-                limits.tail.x,
-                limits.tail.y,
-                limits.tail.z,
+                spec.size.x,
+                spec.size.y,
+                spec.size.z,
             ))),
-            transform: Transform::from_xyz(0.0, 0.0, limits.fuselage.z / 2.0 + limits.tail.z / 2.0),
+            transform: Transform::from_xyz(0.0, 0.0, pos.z + spec.size.z / 2.0),
             material: materials.add(color.into()),
             ..default()
         },
         Friction::new(0.01),
-        Collider::cuboid(
-            limits.tail.x * 0.5,
-            limits.tail.y * 0.5,
-            limits.tail.z * 0.5,
-        ),
+        Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
+        ColliderMassProperties::Density(0.),
     ));
+
+    let end_pos = pos + vec3(0., 0., spec.size.z);
+
+    build_vertical_tail(
+        parent,
+        meshes,
+        materials,
+        end_pos + Vec3::Y * spec.size.y * 0.5,
+        &spec.vertical,
+        Color::BLUE,
+    );
+
+    build_horizontal_tails(
+        parent,
+        meshes,
+        materials,
+        end_pos,
+        &spec.horizontal,
+        Color::BLUE,
+    );
 }
 
 pub fn build_vertical_tail(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
+    pos: Vec3,
+    spec: &WingSpec,
     color: Color,
-    size: Vec3,
 ) {
-    let lift_coefficient_curve = Linear::builder()
-        .elements([-0.0, -0.01, 0.0, 0.0, 0.0, 0.01, 0.0])
-        .knots([-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0])
-        .build()
-        .unwrap();
-
     parent.spawn((
         VerticalTailWing,
         Airfoil {
             position: AirfoilPosition::VerticalTail,
-            area: size.y * size.z,
-            lift_coefficient_samples: lift_coefficient_curve.take(180).collect(),
+            area: spec.size.y * spec.size.z,
+            lift_coefficient_samples: spec.lift_coefficient_samples(),
         },
         AngleOfAttack::default(),
         Lift::default(),
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(size.x, size.y, size.z))),
+            mesh: meshes.add(Mesh::from(shape::Box::new(
+                spec.size.x,
+                spec.size.y,
+                spec.size.z,
+            ))),
             material: materials.add(color.into()),
             transform: Transform::from_xyz(
-                0.,
-                limits.tail.y * 0.5 + size.y * 0.5,
-                limits.fuselage.z * 0.5 + limits.tail.z - size.z * 0.5,
+                pos.x,
+                pos.y + spec.size.y * 0.5,
+                pos.z - spec.size.z * 0.5,
             ),
             ..default()
         },
-        Collider::cuboid(size.x * 0.5, size.y * 0.5, size.z * 0.5),
+        Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
+        ColliderMassProperties::Density(0.),
     ));
 }
 
@@ -216,23 +314,14 @@ pub fn build_horizontal_tails(
     parent: &mut ChildBuilder<'_, '_, '_>,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    limits: &PlaneLimits,
+    pos: Vec3,
+    spec: &WingSpec,
     color: Color,
 ) {
-    let tail_wing_lift_coefficient_curve = Linear::builder()
-        .elements([-0.0, -0.25, 0.0, 0.0, 0.0, 0.25, 0.0])
-        .knots([-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0])
-        .build()
-        .unwrap();
-
     for (position, side) in [
         (AirfoilPosition::HorizontalTailLeft, Side::Left),
         (AirfoilPosition::HorizontalTailRight, Side::Right),
     ] {
-        let width = 2.0;
-        let height = 0.1;
-        let length = 0.7;
-
         let offset = match position {
             AirfoilPosition::HorizontalTailLeft => -1.0,
             AirfoilPosition::HorizontalTailRight => 1.0,
@@ -243,22 +332,27 @@ pub fn build_horizontal_tails(
             HorizontalTailWing(side),
             Airfoil {
                 position,
-                area: width * length,
-                lift_coefficient_samples: tail_wing_lift_coefficient_curve.take(180).collect(),
+                area: spec.size.x * spec.size.z,
+                lift_coefficient_samples: spec.lift_coefficient_samples(),
             },
             AngleOfAttack::default(),
             Lift::default(),
             PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Box::new(width, height, length))),
+                mesh: meshes.add(Mesh::from(shape::Box::new(
+                    spec.size.x,
+                    spec.size.y,
+                    spec.size.z,
+                ))),
                 material: materials.add(color.into()),
                 transform: Transform::from_xyz(
-                    (limits.tail.x * 0.5 + width * 0.5) * offset,
-                    0.0,
-                    limits.fuselage.z * 0.5 + limits.tail.z - length * 0.5,
+                    pos.x + spec.size.x * 0.5 * offset,
+                    pos.y,
+                    pos.z + spec.size.z,
                 ),
                 ..default()
             },
-            Collider::cuboid(width * 0.5, height * 0.5, length * 0.5),
+            Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
+            ColliderMassProperties::Density(0.),
         ));
     }
 }

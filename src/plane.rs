@@ -1,22 +1,15 @@
 mod build;
+pub mod spec;
 
 use core::f32;
 use std::ops::AddAssign;
 
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use enterpolation::{linear::Linear, Curve};
 
-use crate::{
-    camera::{self},
-    physics::CentreOfGravity,
-    world::{self, BlockPos},
-};
+use crate::physics::CentreOfGravity;
 
-use self::build::{
-    build_fuselage, build_horizontal_tails, build_propellor, build_tail, build_vertical_tail,
-    build_wings,
-};
+use self::spec::PlaneSpec;
 
 pub struct PlanePlugin;
 
@@ -25,6 +18,7 @@ impl Plugin for PlanePlugin {
         app.add_systems(Startup, setup_plane).add_systems(
             Update,
             (
+                build::build_plane,
                 update_propellor,
                 update_airfoil_rotations,
                 update_ailerons,
@@ -39,16 +33,6 @@ impl Plugin for PlanePlugin {
 
 #[derive(Component)]
 pub struct Plane;
-
-#[derive(Component, Clone)]
-pub struct PlaneLimits {
-    pub thrust: f32,
-    pub fuselage: Vec3,
-    pub tail: Vec3,
-    pub wings: Vec2,
-    pub wing_offset_z: f32,
-    pub lift_coefficient_samples: Vec<f32>,
-}
 
 #[derive(Component, Default)]
 pub struct PlaneControl {
@@ -132,90 +116,8 @@ pub struct Propellor;
 #[derive(Component)]
 pub struct Aileron(Side);
 
-fn setup_plane(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let lift_coefficient_curve = Linear::builder()
-        .elements([0.0, 0.0, 0.35, 1.4, 0.8, 0.0])
-        .knots([-90.0, -5.0, 0.0, 10.0, 15.0, 90.0])
-        .build()
-        .unwrap();
-
-    let lift_coefficient_samples: Vec<_> = lift_coefficient_curve.take(180).collect();
-
-    let limits = PlaneLimits {
-        thrust: 150.0,
-        fuselage: Vec3::new(1.12, 2.0, 5.3),
-        tail: Vec3::new(0.25, 0.25, 3.0),
-        wings: Vec2::new(11.0, 1.5),
-        wing_offset_z: -0.0,
-        lift_coefficient_samples: lift_coefficient_samples.clone(),
-    };
-
-    let metal_color = Color::hex("d5d5d7").unwrap();
-    let fuselage_color = Color::rgb(1.0, 0.0, 0.0);
-    let propellor_color = metal_color;
-    let wing_color = metal_color;
-
-    commands
-        .spawn((
-            Plane,
-            PlaneControl::default(),
-            limits.clone(),
-            PlaneFlight::default(),
-            CentreOfGravity::default(),
-            Thrust(0.0),
-            Airspeed::default(),
-            Altitude::default(),
-            SpatialBundle::from_transform(Transform::from_xyz(
-                world::SPACING as f32 * 0.5,
-                1.1,
-                0.,
-            )),
-            RigidBody::Dynamic,
-            Velocity::zero(),
-            ExternalForce::default(),
-            ReadMassProperties::default(),
-            camera::Follow(camera::FollowKind::Behind),
-            BlockPos(0, 0),
-        ))
-        .with_children(|parent| {
-            build_fuselage(parent, &mut meshes, &mut materials, &limits, fuselage_color);
-
-            build_propellor(
-                parent,
-                &mut meshes,
-                &mut materials,
-                &limits,
-                propellor_color,
-            );
-
-            build_wings(
-                parent,
-                &mut meshes,
-                &mut materials,
-                &limits,
-                &lift_coefficient_samples,
-                wing_color,
-            );
-
-            build_tail(parent, &mut meshes, &mut materials, &limits, fuselage_color);
-
-            let tail_size = Vec3::new(0.2, limits.fuselage.y * 0.5, limits.fuselage.y * 0.5);
-
-            build_vertical_tail(
-                parent,
-                &mut meshes,
-                &mut materials,
-                &limits,
-                wing_color,
-                tail_size,
-            );
-
-            build_horizontal_tails(parent, &mut meshes, &mut materials, &limits, wing_color);
-        });
+fn setup_plane(mut commands: Commands) {
+    commands.spawn(PlaneSpec::new("Test plane"));
 }
 
 fn angle_of_attack(velocity: Vec3, up: Vec3, forward: Vec3) -> f32 {
@@ -270,16 +172,16 @@ fn update_ailerons(
 }
 
 fn update_propellor(
-    plane_query: Query<(&Thrust, &PlaneLimits)>,
+    plane_query: Query<(&Thrust, &PlaneSpec)>,
     mut propellor_query: Query<&mut Transform, With<Propellor>>,
     time: Res<Time>,
 ) {
-    let Ok((Thrust(thrust), limits)) = plane_query.get_single() else {
+    let Ok((Thrust(thrust), spec)) = plane_query.get_single() else {
         return;
     };
 
     for mut tx in propellor_query.iter_mut() {
-        let rate = (*thrust / limits.thrust) * 3600_f32.to_radians();
+        let rate = (*thrust / spec.thrust) * 3600_f32.to_radians();
         tx.rotate_local_z(rate * time.delta_seconds());
     }
 }
@@ -294,7 +196,7 @@ fn update_airspeed(mut plane_query: Query<(&GlobalTransform, &Velocity, &mut Air
 fn update_thrust_forces(
     mut plane_query: Query<
         (
-            &PlaneLimits,
+            &PlaneSpec,
             &Thrust,
             &GlobalTransform,
             &CentreOfGravity,
@@ -303,14 +205,14 @@ fn update_thrust_forces(
         With<Plane>,
     >,
 ) {
-    for (limits, Thrust(thrust), global_tx, centre_of_gravity, mut external_force) in
+    for (spec, Thrust(thrust), global_tx, centre_of_gravity, mut external_force) in
         plane_query.iter_mut()
     {
         external_force.force = Vec3::ZERO;
         external_force.torque = Vec3::ZERO;
         external_force.add_assign(ExternalForce::at_point(
             global_tx.forward() * *thrust,
-            global_tx.translation() + (global_tx.forward() * limits.fuselage.z * 0.5),
+            global_tx.translation() + (global_tx.forward() * spec.fuselage.size.z * 0.5),
             centre_of_gravity.global,
         ));
     }
