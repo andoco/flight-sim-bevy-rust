@@ -1,12 +1,12 @@
 mod camera;
-mod hud_ui;
 mod input;
 mod physics;
 mod plane;
+mod ui;
 mod world;
 
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
-use hud_ui::HudUiPlugin;
+use ui::HudUiPlugin;
 use world::WorldPlugin;
 
 fn main() {
