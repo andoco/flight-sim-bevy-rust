@@ -1,7 +1,7 @@
 use bevy::{math::vec3, prelude::*};
 use enterpolation::{linear::Linear, Curve};
 
-#[derive(Component)]
+#[derive(Component, Debug, Clone)]
 pub struct PlaneSpec {
     pub name: String,
     pub thrust: f32,
@@ -49,10 +49,21 @@ impl Default for PlaneSpec {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct WingSpec {
     pub size: Vec3,
     pub lift_coefficient_elements: Vec<f32>,
     pub lift_coefficient_knots: Vec<f32>,
+}
+
+impl Default for WingSpec {
+    fn default() -> Self {
+        Self {
+            size: vec3(2., 0.2, 1.0),
+            lift_coefficient_elements: vec![-0.0, -0.15, 0.10, 0.15, 0.0],
+            lift_coefficient_knots: vec![-90.0, -10.0, 0.0, 10.0, 90.0],
+        }
+    }
 }
 
 impl WingSpec {
@@ -71,10 +82,12 @@ impl WingSpec {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FuselageSpec {
     pub size: Vec3,
 }
 
+#[derive(Debug, Clone)]
 pub struct TailSpec {
     pub size: Vec3,
     pub vertical: WingSpec,

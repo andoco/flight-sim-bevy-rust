@@ -33,7 +33,7 @@ impl Plugin for PlanePlugin {
 }
 
 #[derive(Event)]
-pub struct BuildPlaneEvent;
+pub struct BuildPlaneEvent(pub PlaneSpec);
 
 #[derive(Component)]
 pub struct Plane;
@@ -121,7 +121,7 @@ impl Side {
 pub struct Propellor;
 
 fn setup_plane(mut build_plane_event: EventWriter<BuildPlaneEvent>) {
-    build_plane_event.send(BuildPlaneEvent);
+    build_plane_event.send(BuildPlaneEvent(PlaneSpec::default()));
 }
 
 fn build_plane(
@@ -129,14 +129,14 @@ fn build_plane(
     plane_query: Query<Entity, With<Plane>>,
     mut build_plane_event: EventReader<BuildPlaneEvent>,
 ) {
-    for _ in build_plane_event.iter() {
+    for BuildPlaneEvent(spec) in build_plane_event.iter() {
         if let Ok(entity) = plane_query.get_single() {
             info!("Removing existing plane");
             commands.entity(entity).despawn_recursive();
         }
 
         info!("Building plane");
-        commands.spawn(PlaneSpec::new("Test plane"));
+        commands.spawn(spec.clone());
     }
 }
 
