@@ -23,7 +23,7 @@ impl Plugin for PlanePlugin {
                     (build_plane, build::build_plane).chain(),
                     update_propellor,
                     update_airfoil_rotations,
-                    update_ailerons,
+                    update_control_surfaces,
                     update_airspeed,
                     update_thrust_forces,
                     update_airfoil_forces,
@@ -74,13 +74,11 @@ pub struct PlaneFlight {
     pub drag: f32,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum AirfoilPosition {
-    WingLeft,
-    WingRight,
+    Wing(Side),
     Aileron(Side),
-    HorizontalTailLeft,
-    HorizontalTailRight,
+    TailWing(Side),
     VerticalTail,
 }
 
@@ -108,12 +106,6 @@ pub enum Side {
 
 #[derive(Component)]
 pub struct Wing(Side);
-
-#[derive(Component)]
-pub struct VerticalTailWing;
-
-#[derive(Component)]
-pub struct HorizontalTailWing(Side);
 
 #[derive(Component)]
 pub struct Propellor;
@@ -156,9 +148,6 @@ fn update_airfoil_rotations(
         for child in children.iter() {
             if let Ok((airfoil, mut airfoil_tx)) = airfoil_query.get_mut(*child) {
                 match airfoil.position {
-                    AirfoilPosition::HorizontalTailLeft | AirfoilPosition::HorizontalTailRight => {
-                        airfoil_tx.rotation = Quat::from_rotation_x(control.elevators);
-                    }
                     AirfoilPosition::VerticalTail => {
                         airfoil_tx.rotation = Quat::from_rotation_y(control.rudder);
                     }
@@ -169,22 +158,26 @@ fn update_airfoil_rotations(
     }
 }
 
-fn update_ailerons(
+fn update_control_surfaces(
     control_query: Query<&PlaneControl>,
-    wing_query: Query<(&Parent, &Children), With<Wing>>,
+    wing_query: Query<(&Airfoil, &Parent, &Children), With<Wing>>,
     mut aileron_query: Query<(&mut Transform, &Aileron)>,
 ) {
-    for (entity, children) in wing_query.iter() {
+    for (airfoil, entity, children) in wing_query.iter() {
         if let Ok(control) = control_query.get(**entity) {
             for child in children.iter() {
                 if let Ok((mut aileron_tx, Aileron(side))) = aileron_query.get_mut(*child) {
-                    match side {
-                        Side::Left => {
+                    match (airfoil.position, side) {
+                        (AirfoilPosition::Wing(Side::Left), Side::Left) => {
                             aileron_tx.rotation = Quat::from_rotation_x(-control.ailerons);
                         }
-                        Side::Right => {
+                        (AirfoilPosition::Wing(Side::Right), Side::Right) => {
                             aileron_tx.rotation = Quat::from_rotation_x(control.ailerons);
                         }
+                        (AirfoilPosition::TailWing(_), _) => {
+                            aileron_tx.rotation = Quat::from_rotation_x(control.elevators);
+                        }
+                        _ => {}
                     }
                 }
             }

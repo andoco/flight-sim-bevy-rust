@@ -9,8 +9,8 @@ use crate::{
 
 use super::{
     spec::{FuselageSpec, PlaneSpec, TailSpec, WingSpec},
-    Aileron, Airfoil, AirfoilPosition, Airspeed, Altitude, AngleOfAttack, HorizontalTailWing, Lift,
-    Plane, PlaneControl, PlaneFlight, Propellor, Side, Thrust, VerticalTailWing, Wing,
+    Aileron, Airfoil, AirfoilPosition, Airspeed, Altitude, AngleOfAttack, Lift, Plane,
+    PlaneControl, PlaneFlight, Propellor, Side, Thrust, Wing,
 };
 
 pub fn build_plane(
@@ -116,8 +116,6 @@ pub fn build_wings(
     spec: &WingSpec,
     wing_color: Color,
 ) {
-    let lift_coefficient_samples = spec.lift_coefficient_samples();
-
     [Side::Left, Side::Right].iter().for_each(|side| {
         build_wing(
             parent,
@@ -125,9 +123,9 @@ pub fn build_wings(
             materials,
             pos,
             spec,
-            &lift_coefficient_samples,
             wing_color,
             *side,
+            AirfoilPosition::Wing(*side),
         );
     });
 }
@@ -138,13 +136,13 @@ fn build_wing(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     pos: Vec3,
     spec: &WingSpec,
-    lift_coefficient_samples: &Vec<f32>,
     wing_color: Color,
     side: Side,
+    position: AirfoilPosition,
 ) {
-    let (position, offset) = match side {
-        Side::Left => (AirfoilPosition::WingLeft, 1.0),
-        Side::Right => (AirfoilPosition::WingRight, -1.0),
+    let offset = match side {
+        Side::Left => 1.0,
+        Side::Right => -1.0,
     };
 
     parent
@@ -153,7 +151,7 @@ fn build_wing(
             Airfoil {
                 position,
                 area: spec.size.x * spec.size.z,
-                lift_coefficient_samples: lift_coefficient_samples.clone(),
+                lift_coefficient_samples: spec.lift_coefficient_samples(),
             },
             AngleOfAttack::default(),
             Lift::default(),
@@ -181,7 +179,7 @@ fn build_wing(
                 Airfoil {
                     position: AirfoilPosition::Aileron(side),
                     area: aileron_width * aileron_length,
-                    lift_coefficient_samples: lift_coefficient_samples.clone(),
+                    lift_coefficient_samples: spec.lift_coefficient_samples(),
                 },
                 AngleOfAttack::default(),
                 Lift::default(),
@@ -264,14 +262,19 @@ pub fn build_tail(
         Color::BLUE,
     );
 
-    build_horizontal_tails(
-        parent,
-        meshes,
-        materials,
-        end_pos,
-        &spec.horizontal,
-        Color::BLUE,
-    );
+    // Horizontal tail wings
+    for side in [Side::Left, Side::Right] {
+        build_wing(
+            parent,
+            meshes,
+            materials,
+            pos,
+            &spec.horizontal,
+            Color::BLUE,
+            side,
+            AirfoilPosition::TailWing(side),
+        );
+    }
 }
 
 pub fn build_vertical_tail(
@@ -283,7 +286,6 @@ pub fn build_vertical_tail(
     color: Color,
 ) {
     parent.spawn((
-        VerticalTailWing,
         Airfoil {
             position: AirfoilPosition::VerticalTail,
             area: spec.size.y * spec.size.z,
@@ -308,51 +310,4 @@ pub fn build_vertical_tail(
         Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
         ColliderMassProperties::Density(0.),
     ));
-}
-
-pub fn build_horizontal_tails(
-    parent: &mut ChildBuilder<'_, '_, '_>,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    pos: Vec3,
-    spec: &WingSpec,
-    color: Color,
-) {
-    for (position, side) in [
-        (AirfoilPosition::HorizontalTailLeft, Side::Left),
-        (AirfoilPosition::HorizontalTailRight, Side::Right),
-    ] {
-        let offset = match position {
-            AirfoilPosition::HorizontalTailLeft => -1.0,
-            AirfoilPosition::HorizontalTailRight => 1.0,
-            _ => panic!("Not a horizontal tail position"),
-        };
-
-        parent.spawn((
-            HorizontalTailWing(side),
-            Airfoil {
-                position,
-                area: spec.size.x * spec.size.z,
-                lift_coefficient_samples: spec.lift_coefficient_samples(),
-            },
-            AngleOfAttack::default(),
-            Lift::default(),
-            PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Box::new(
-                    spec.size.x,
-                    spec.size.y,
-                    spec.size.z,
-                ))),
-                material: materials.add(color.into()),
-                transform: Transform::from_xyz(
-                    pos.x + spec.size.x * 0.5 * offset,
-                    pos.y,
-                    pos.z + spec.size.z,
-                ),
-                ..default()
-            },
-            Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
-            ColliderMassProperties::Density(0.),
-        ));
-    }
 }
