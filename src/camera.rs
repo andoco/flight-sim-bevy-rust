@@ -55,10 +55,19 @@ fn update_fog(mut query: Query<(&mut FogSettings, &FogControl), Changed<FogContr
     fog_settings.falloff = new_falloff;
 }
 
-fn attach_to_follow(mut commands: Commands, follow_query: Query<(Entity, &Follow), Added<Follow>>) {
+fn attach_to_follow(
+    mut commands: Commands,
+    follow_query: Query<(Entity, &Follow), Changed<Follow>>,
+    camera_query: Query<Entity, With<MainCamera>>,
+) {
     let Ok((follow_entity, Follow(follow_kind))) = follow_query.get_single() else {
         return;
     };
+
+    if let Ok(camera_entity) = camera_query.get_single() {
+        info!("Despawning camera");
+        commands.entity(camera_entity).despawn_recursive();
+    }
 
     info!("Creating follow camera");
 
