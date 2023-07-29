@@ -170,11 +170,30 @@ impl Vec3Model {
 }
 
 trait UiExt {
+    fn float_label(&mut self, txt: &str, val: f32, color: Color32, width: usize);
     fn vec3(&mut self, label: &str, value: &mut Vec3Model);
     fn wing(&mut self, label: &str, value: &mut WingModel);
 }
 
 impl UiExt for Ui {
+    fn float_label(&mut self, txt: &str, val: f32, color: Color32, width: usize) {
+        let sign_char = match val.is_sign_positive() {
+            true => "+",
+            false => "-",
+        };
+
+        self.label(
+            RichText::new(format!(
+                "{txt}: {sign_char}{:0width$.4}",
+                val.abs(),
+                txt = txt,
+                width = width,
+                sign_char = sign_char,
+            ))
+            .color(color),
+        );
+    }
+
     fn vec3(&mut self, label: &str, value: &mut Vec3Model) {
         self.label(label);
         self.group(|ui| {
@@ -206,24 +225,6 @@ impl UiExt for Ui {
             });
         });
     }
-}
-
-pub fn float_label(ui: &mut Ui, txt: &str, val: f32, color: Color32, width: usize) {
-    let sign_char = match val.is_sign_positive() {
-        true => "+",
-        false => "-",
-    };
-
-    ui.label(
-        RichText::new(format!(
-            "{txt}: {sign_char}{:0width$.4}",
-            val.abs(),
-            txt = txt,
-            width = width,
-            sign_char = sign_char,
-        ))
-        .color(color),
-    );
 }
 
 fn update_hud_ui(
@@ -313,13 +314,13 @@ fn update_hud_ui(
                 model.show_environment = !model.show_environment;
             }
 
-            float_label(ui, "fps", model.fps, normal_color, width);
-            float_label(ui, "weight", model.weight, normal_color, width);
-            float_label(ui, "altitude", model.altitude, normal_color, width);
-            float_label(ui, "airspeed", model.airspeed, normal_color, width);
-            float_label(ui, "drag", model.drag, normal_color, width);
-            float_label(ui, "thrust", model.thrust, normal_color, width);
-            float_label(ui, "bearing", model.bearing, normal_color, width);
+            ui.float_label("fps", model.fps, normal_color, width);
+            ui.float_label("weight", model.weight, normal_color, width);
+            ui.float_label("altitude", model.altitude, normal_color, width);
+            ui.float_label("airspeed", model.airspeed, normal_color, width);
+            ui.float_label("drag", model.drag, normal_color, width);
+            ui.float_label("thrust", model.thrust, normal_color, width);
+            ui.float_label("bearing", model.bearing, normal_color, width);
         });
 
         ui.horizontal(|ui| {
@@ -341,8 +342,8 @@ fn update_hud_ui(
             for (label, lift, aoa) in groups.iter() {
                 ui.group(|ui| {
                     ui.label(*label);
-                    float_label(ui, "aoa", *aoa, normal_color, width);
-                    float_label(ui, "lift", *lift, lift_color(*lift), width);
+                    ui.float_label("aoa", *aoa, normal_color, width);
+                    ui.float_label("lift", *lift, lift_color(*lift), width);
                 });
             }
         });
