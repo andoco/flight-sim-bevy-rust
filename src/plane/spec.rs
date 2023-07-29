@@ -36,7 +36,7 @@ impl Default for PlaneSpec {
                 size: vec3(0.25, 0.25, 3.0),
                 vertical: WingSpec {
                     size: vec3(0.1, 2., 0.5),
-                    lift_coefficient_elements: vec![-0.0, -0.01, 0.0, 0.0, 0.0, 0.01, 0.0],
+                    lift_coefficient_elements: vec![-0.0, -0.1, 0.0, 0.0, 0.0, 0.1, 0.0],
                     lift_coefficient_knots: vec![-90.0, -10.0, -2.5, 0.0, 2.5, 10.0, 90.0],
                 },
                 horizontal: WingSpec {

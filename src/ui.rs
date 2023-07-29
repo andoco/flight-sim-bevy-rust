@@ -12,7 +12,9 @@ use bevy_egui::{
 
 use crate::{
     camera::FogControl,
-    plane::{Airfoil, Airspeed, AngleOfAttack, BuildPlaneEvent, Lift, PlaneFlight, Side, Thrust},
+    plane::{
+        AirfoilPosition, Airspeed, AngleOfAttack, BuildPlaneEvent, Lift, PlaneFlight, Side, Thrust,
+    },
     world::SunControl,
 };
 
@@ -45,8 +47,6 @@ struct HudModel {
     bearing: f32,
     wing_left: AirfoilModel,
     wing_right: AirfoilModel,
-    aileron_left: AirfoilModel,
-    aileron_right: AirfoilModel,
     tail_wing_left: AirfoilModel,
     tail_wing_right: AirfoilModel,
     weight: f32,
@@ -83,7 +83,7 @@ fn setup(mut commands: Commands, mut contexts: EguiContexts) {
 
 fn update_hud_model(
     plane_query: Query<(&GlobalTransform, &PlaneFlight, &Thrust, &Airspeed)>,
-    airfoil_query: Query<(&Airfoil, &AngleOfAttack, &Lift)>,
+    airfoil_query: Query<(&AirfoilPosition, &AngleOfAttack, &Lift)>,
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<DiagnosticsStore>,
 ) {
@@ -112,39 +112,27 @@ fn update_hud_model(
         .1
         .to_degrees();
 
-    for (airfoil, AngleOfAttack(aoa), Lift(lift)) in airfoil_query.iter() {
-        match airfoil.position {
-            crate::plane::AirfoilPosition::WingLeft => {
+    for (position, AngleOfAttack(aoa), Lift(lift)) in airfoil_query.iter() {
+        match position {
+            crate::plane::AirfoilPosition::Wing(Side::Left) => {
                 model.wing_left = AirfoilModel {
                     lift: *lift,
                     aoa: aoa.to_degrees(),
                 };
             }
-            crate::plane::AirfoilPosition::WingRight => {
+            crate::plane::AirfoilPosition::Wing(Side::Right) => {
                 model.wing_right = AirfoilModel {
                     lift: *lift,
                     aoa: aoa.to_degrees(),
                 };
             }
-            crate::plane::AirfoilPosition::Aileron(Side::Left) => {
-                model.aileron_left = AirfoilModel {
-                    lift: *lift,
-                    aoa: aoa.to_degrees(),
-                };
-            }
-            crate::plane::AirfoilPosition::Aileron(Side::Right) => {
-                model.aileron_left = AirfoilModel {
-                    lift: *lift,
-                    aoa: aoa.to_degrees(),
-                };
-            }
-            crate::plane::AirfoilPosition::HorizontalTailLeft => {
+            crate::plane::AirfoilPosition::TailWing(Side::Left) => {
                 model.tail_wing_left = AirfoilModel {
                     lift: *lift,
                     aoa: aoa.to_degrees(),
                 };
             }
-            crate::plane::AirfoilPosition::HorizontalTailRight => {
+            crate::plane::AirfoilPosition::TailWing(Side::Right) => {
                 model.tail_wing_right = AirfoilModel {
                     lift: *lift,
                     aoa: aoa.to_degrees(),
@@ -246,16 +234,6 @@ fn update_hud_ui(
             let groups = [
                 ("wing_left", model.wing_left.lift, model.wing_left.aoa),
                 ("wing_right", model.wing_right.lift, model.wing_right.aoa),
-                (
-                    "aileron_left",
-                    model.aileron_left.lift,
-                    model.aileron_left.aoa,
-                ),
-                (
-                    "aileron_right",
-                    model.aileron_right.lift,
-                    model.aileron_right.aoa,
-                ),
                 (
                     "tail_left",
                     model.tail_wing_left.lift,

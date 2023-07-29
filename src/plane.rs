@@ -22,8 +22,7 @@ impl Plugin for PlanePlugin {
                 (
                     (build_plane, build::build_plane).chain(),
                     update_propellor,
-                    update_airfoil_rotations,
-                    update_control_surfaces,
+                    update_airfoil_control_surfaces,
                     update_airspeed,
                     update_thrust_forces,
                     update_airfoil_forces,
@@ -74,26 +73,31 @@ pub struct PlaneFlight {
     pub drag: f32,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Component, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum AirfoilPosition {
     Wing(Side),
-    Aileron(Side),
     TailWing(Side),
     VerticalTail,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum AirfoilOrientation {
+    Horizontal,
+    Vertical,
+}
+
 #[derive(Component)]
 pub struct Airfoil {
-    pub position: AirfoilPosition,
+    pub orientation: AirfoilOrientation,
     pub area: f32,
     pub lift_coefficient_samples: Vec<f32>,
 }
 
 impl Airfoil {
     pub fn force_base_dir(&self, global_tx: &GlobalTransform) -> Vec3 {
-        match self.position {
-            AirfoilPosition::VerticalTail => global_tx.right(),
-            _ => global_tx.up(),
+        match self.orientation {
+            AirfoilOrientation::Horizontal => global_tx.up(),
+            AirfoilOrientation::Vertical => global_tx.right(),
         }
     }
 }
@@ -104,14 +108,17 @@ pub enum Side {
     Right,
 }
 
-#[derive(Component)]
-pub struct Wing(Side);
+impl Side {
+    pub fn offset(&self) -> f32 {
+        match self {
+            Self::Left => 1.0,
+            Self::Right => -1.0,
+        }
+    }
+}
 
 #[derive(Component)]
 pub struct Propellor;
-
-#[derive(Component)]
-pub struct Aileron(Side);
 
 fn setup_plane(mut build_plane_event: EventWriter<BuildPlaneEvent>) {
     build_plane_event.send(BuildPlaneEvent);
@@ -140,44 +147,28 @@ fn angle_of_attack(velocity: Vec3, up: Vec3, forward: Vec3) -> f32 {
     a2 - a1
 }
 
-fn update_airfoil_rotations(
-    query: Query<(&PlaneControl, &Children)>,
-    mut airfoil_query: Query<(&Airfoil, &mut Transform)>,
-) {
-    for (control, children) in query.iter() {
-        for child in children.iter() {
-            if let Ok((airfoil, mut airfoil_tx)) = airfoil_query.get_mut(*child) {
-                match airfoil.position {
-                    AirfoilPosition::VerticalTail => {
-                        airfoil_tx.rotation = Quat::from_rotation_y(control.rudder);
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-}
-
-fn update_control_surfaces(
+fn update_airfoil_control_surfaces(
     control_query: Query<&PlaneControl>,
-    wing_query: Query<(&Airfoil, &Parent, &Children), With<Wing>>,
-    mut aileron_query: Query<(&mut Transform, &Aileron)>,
+    wing_query: Query<(&AirfoilPosition, &Parent, &Children)>,
+    mut aileron_query: Query<&mut Transform, With<Airfoil>>,
 ) {
-    for (airfoil, entity, children) in wing_query.iter() {
+    for (position, entity, children) in wing_query.iter() {
         if let Ok(control) = control_query.get(**entity) {
             for child in children.iter() {
-                if let Ok((mut aileron_tx, Aileron(side))) = aileron_query.get_mut(*child) {
-                    match (airfoil.position, side) {
-                        (AirfoilPosition::Wing(Side::Left), Side::Left) => {
+                if let Ok(mut aileron_tx) = aileron_query.get_mut(*child) {
+                    match position {
+                        AirfoilPosition::Wing(Side::Left) => {
                             aileron_tx.rotation = Quat::from_rotation_x(-control.ailerons);
                         }
-                        (AirfoilPosition::Wing(Side::Right), Side::Right) => {
+                        AirfoilPosition::Wing(Side::Right) => {
                             aileron_tx.rotation = Quat::from_rotation_x(control.ailerons);
                         }
-                        (AirfoilPosition::TailWing(_), _) => {
+                        AirfoilPosition::TailWing(_) => {
                             aileron_tx.rotation = Quat::from_rotation_x(control.elevators);
                         }
-                        _ => {}
+                        AirfoilPosition::VerticalTail => {
+                            aileron_tx.rotation = Quat::from_rotation_y(control.rudder);
+                        }
                     }
                 }
             }

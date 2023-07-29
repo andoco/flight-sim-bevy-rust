@@ -9,8 +9,8 @@ use crate::{
 
 use super::{
     spec::{FuselageSpec, PlaneSpec, TailSpec, WingSpec},
-    Aileron, Airfoil, AirfoilPosition, Airspeed, Altitude, AngleOfAttack, Lift, Plane,
-    PlaneControl, PlaneFlight, Propellor, Side, Thrust, Wing,
+    Airfoil, AirfoilOrientation, AirfoilPosition, Airspeed, Altitude, AngleOfAttack, Lift, Plane,
+    PlaneControl, PlaneFlight, Propellor, Side, Thrust,
 };
 
 pub fn build_plane(
@@ -124,8 +124,9 @@ pub fn build_wings(
             pos,
             spec,
             wing_color,
-            *side,
+            Some(*side),
             AirfoilPosition::Wing(*side),
+            AirfoilOrientation::Horizontal,
         );
     });
 }
@@ -137,19 +138,20 @@ fn build_wing(
     pos: Vec3,
     spec: &WingSpec,
     wing_color: Color,
-    side: Side,
+    side: Option<Side>,
     position: AirfoilPosition,
+    orientation: AirfoilOrientation,
 ) {
     let offset = match side {
-        Side::Left => 1.0,
-        Side::Right => -1.0,
+        Some(side) => side.offset(),
+        None => 0.0,
     };
 
     parent
         .spawn((
-            Wing(side),
+            position,
             Airfoil {
-                position,
+                orientation,
                 area: spec.size.x * spec.size.z,
                 lift_coefficient_samples: spec.lift_coefficient_samples(),
             },
@@ -175,9 +177,8 @@ fn build_wing(
             let aileron_length = spec.size.z * 0.1;
 
             parent.spawn((
-                Aileron(side),
                 Airfoil {
-                    position: AirfoilPosition::Aileron(side),
+                    orientation,
                     area: aileron_width * aileron_length,
                     lift_coefficient_samples: spec.lift_coefficient_samples(),
                 },
@@ -253,16 +254,20 @@ pub fn build_tail(
 
     let end_pos = pos + vec3(0., 0., spec.size.z);
 
-    build_vertical_tail(
+    // Vertical tail surfaces
+    build_wing(
         parent,
         meshes,
         materials,
         end_pos + Vec3::Y * spec.size.y * 0.5,
         &spec.vertical,
         Color::BLUE,
+        None,
+        AirfoilPosition::VerticalTail,
+        AirfoilOrientation::Vertical,
     );
 
-    // Horizontal tail wings
+    // Horizontal tail surfaces
     for side in [Side::Left, Side::Right] {
         build_wing(
             parent,
@@ -271,43 +276,9 @@ pub fn build_tail(
             pos,
             &spec.horizontal,
             Color::BLUE,
-            side,
+            Some(side),
             AirfoilPosition::TailWing(side),
+            AirfoilOrientation::Horizontal,
         );
     }
-}
-
-pub fn build_vertical_tail(
-    parent: &mut ChildBuilder<'_, '_, '_>,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    pos: Vec3,
-    spec: &WingSpec,
-    color: Color,
-) {
-    parent.spawn((
-        Airfoil {
-            position: AirfoilPosition::VerticalTail,
-            area: spec.size.y * spec.size.z,
-            lift_coefficient_samples: spec.lift_coefficient_samples(),
-        },
-        AngleOfAttack::default(),
-        Lift::default(),
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box::new(
-                spec.size.x,
-                spec.size.y,
-                spec.size.z,
-            ))),
-            material: materials.add(color.into()),
-            transform: Transform::from_xyz(
-                pos.x,
-                pos.y + spec.size.y * 0.5,
-                pos.z - spec.size.z * 0.5,
-            ),
-            ..default()
-        },
-        Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
-        ColliderMassProperties::Density(0.),
-    ));
 }
