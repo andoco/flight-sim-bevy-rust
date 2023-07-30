@@ -125,10 +125,10 @@ fn handle_keyboard_input(
         control.elevators = -10_f32.to_radians();
     }
     if action_state.pressed(PlaneAction::ThrustUp) {
-        thrust.0 += 10.0 * time.delta_seconds();
+        thrust.0 += 50.0 * time.delta_seconds();
     }
     if action_state.pressed(PlaneAction::ThrustDown) {
-        thrust.0 -= 10.0 * time.delta_seconds();
+        thrust.0 -= 50.0 * time.delta_seconds();
     }
 
     thrust.0 = thrust.0.clamp(0., spec.thrust);
