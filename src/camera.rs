@@ -76,7 +76,7 @@ fn attach_to_follow(
     match follow_kind {
         FollowKind::Behind => {
             info!("Follow behind");
-            camera_tx.translation = Vec3::new(0., 5.0, 20.);
+            camera_tx.translation = Vec3::new(0., 5.0, 30.);
             camera_tx.rotation = Quat::default();
         }
         FollowKind::Above => {
