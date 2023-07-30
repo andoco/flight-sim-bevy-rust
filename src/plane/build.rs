@@ -37,7 +37,7 @@ pub fn build_plane(
                 Altitude::default(),
                 SpatialBundle::from_transform(Transform::from_xyz(
                     world::SPACING as f32 * 0.5,
-                    2.0,
+                    plane.fuselage.size.y * 0.5 + 0.6,
                     0.,
                 )),
                 RigidBody::Dynamic,
@@ -116,6 +116,8 @@ pub fn build_wheels(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     spec: &FuselageSpec,
 ) {
+    let wheel_y = -spec.size.y * 0.5 + 0.5;
+
     for side in [Side::Left, Side::Right] {
         parent.spawn((
             PbrBundle {
@@ -126,7 +128,7 @@ pub fn build_wheels(
                 })),
                 transform: Transform::from_xyz(
                     spec.size.x * 0.5 * side.offset(),
-                    -spec.size.y,
+                    wheel_y,
                     -spec.size.z * 0.5,
                 )
                 .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
@@ -145,7 +147,7 @@ pub fn build_wheels(
                 height: 0.1,
                 ..default()
             })),
-            transform: Transform::from_xyz(0.0, -spec.size.y, 5.)
+            transform: Transform::from_xyz(0.0, wheel_y, 5.)
                 .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
             material: materials.add(Color::BLACK.into()),
             ..default()
@@ -296,7 +298,7 @@ pub fn build_tail(
         },
         Friction::new(0.01),
         Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
-        ColliderMassProperties::Density(0.),
+        ColliderMassProperties::Mass(10.),
     ));
 
     let end_pos = pos + vec3(0., 0., spec.size.z);
