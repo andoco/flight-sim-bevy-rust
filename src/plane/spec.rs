@@ -23,7 +23,7 @@ impl Default for PlaneSpec {
     fn default() -> Self {
         Self {
             name: "Default".to_string(),
-            thrust: 150.0,
+            thrust: 500.0,
             fuselage: FuselageSpec {
                 size: vec3(1.12, 2.0, 5.3),
                 mass: 100.0,
