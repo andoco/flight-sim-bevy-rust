@@ -104,8 +104,9 @@ fn setup_ground(
         });
 }
 
-pub const SPACING: i32 = 40;
-const MAX_SIDE: f32 = 10.0;
+pub const SPACING: i32 = 200;
+const MAX_SIDE: f32 = 30.0;
+const MAX_HEIGHT: f32 = 300.0;
 const ACTIVE_BLOCK_DISTANCE: i32 = 20;
 
 #[derive(Component)]
@@ -164,7 +165,7 @@ fn generate_infinite_buildings(
             } else {
                 num_misses += 1;
 
-                let height = (100.0 * n) as f32;
+                let height = MAX_HEIGHT * n as f32;
                 let side = MAX_SIDE;
 
                 let building_pos =
