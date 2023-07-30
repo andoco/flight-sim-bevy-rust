@@ -221,36 +221,36 @@ fn build_wing(
             Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
         ))
         .with_children(|parent| {
-            let aileron_width = spec.size.x * 1.0;
-            let aileron_height = spec.size.y;
-            let aileron_length = spec.size.z * 0.25;
+            let control_width = spec.size.x;
+            let control_height = spec.size.y;
+            let control_length = spec.size.z * 0.25;
 
             parent.spawn((
                 Airfoil {
                     orientation,
-                    area: aileron_width * aileron_length,
-                    lift_coefficient_samples: spec.lift_coefficient_samples(),
+                    area: control_width * control_length,
+                    lift_coefficient_samples: spec.control_lift_curve_samples(),
                 },
                 AngleOfAttack::default(),
                 Lift::default(),
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
-                        aileron_width,
-                        aileron_height,
-                        aileron_length,
+                        control_width,
+                        control_height,
+                        control_length,
                     ))),
                     material: materials.add(wing_color.into()),
                     transform: Transform::from_xyz(
-                        (spec.size.x * 0.5 - aileron_width * 0.5) * offset,
+                        (spec.size.x * 0.5 - control_width * 0.5) * offset,
                         0.0,
-                        spec.size.z / 2.0 + aileron_length / 2.0,
+                        spec.size.z / 2.0 + control_length / 2.0,
                     ),
                     ..default()
                 },
                 Collider::cuboid(
-                    aileron_width * 0.5,
-                    aileron_height * 0.5,
-                    aileron_length * 0.5,
+                    control_width * 0.5,
+                    control_height * 0.5,
+                    control_length * 0.5,
                 ),
             ));
         });

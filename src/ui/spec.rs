@@ -69,6 +69,7 @@ impl WingModel {
             ),
             lift_coefficient_elements: string_to_vec(self.elements.as_str()),
             lift_coefficient_knots: string_to_vec(self.knots.as_str()),
+            ..default()
         }
     }
 }

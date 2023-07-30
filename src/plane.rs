@@ -150,24 +150,24 @@ fn angle_of_attack(velocity: Vec3, up: Vec3, forward: Vec3) -> f32 {
 fn update_airfoil_control_surfaces(
     control_query: Query<&PlaneControl>,
     wing_query: Query<(&AirfoilPosition, &Parent, &Children)>,
-    mut aileron_query: Query<&mut Transform, With<Airfoil>>,
+    mut control_airfoil_query: Query<&mut Transform, With<Airfoil>>,
 ) {
     for (position, entity, children) in wing_query.iter() {
         if let Ok(control) = control_query.get(**entity) {
             for child in children.iter() {
-                if let Ok(mut aileron_tx) = aileron_query.get_mut(*child) {
+                if let Ok(mut control_airfoil_tx) = control_airfoil_query.get_mut(*child) {
                     match position {
                         AirfoilPosition::Wing(Side::Left) => {
-                            aileron_tx.rotation = Quat::from_rotation_x(-control.ailerons);
+                            control_airfoil_tx.rotation = Quat::from_rotation_x(-control.ailerons);
                         }
                         AirfoilPosition::Wing(Side::Right) => {
-                            aileron_tx.rotation = Quat::from_rotation_x(control.ailerons);
+                            control_airfoil_tx.rotation = Quat::from_rotation_x(control.ailerons);
                         }
                         AirfoilPosition::TailWing(_) => {
-                            aileron_tx.rotation = Quat::from_rotation_x(control.elevators);
+                            control_airfoil_tx.rotation = Quat::from_rotation_x(control.elevators);
                         }
                         AirfoilPosition::VerticalTail => {
-                            aileron_tx.rotation = Quat::from_rotation_y(control.rudder);
+                            control_airfoil_tx.rotation = Quat::from_rotation_y(control.rudder);
                         }
                     }
                 }
@@ -226,6 +226,7 @@ fn update_thrust_forces(
 fn update_airfoil_forces(
     mut plane_query: Query<
         (
+            Entity,
             &mut PlaneFlight,
             &Airspeed,
             &Velocity,
@@ -234,51 +235,63 @@ fn update_airfoil_forces(
         ),
         With<Plane>,
     >,
+    children_query: Query<&Children>,
     mut airfoil_query: Query<(&Airfoil, &GlobalTransform, &mut AngleOfAttack, &mut Lift)>,
     mut gizmos: Gizmos,
 ) {
-    for (mut flight, Airspeed(airspeed), velocity, centre_of_gravity, mut external_force) in
-        plane_query.iter_mut()
+    for (
+        plane_entity,
+        mut flight,
+        Airspeed(airspeed),
+        velocity,
+        centre_of_gravity,
+        mut external_force,
+    ) in plane_query.iter_mut()
     {
         let air_density = 1.225; // 1.225 kg/m^3 at sea level
         let dynamic_pressure = 0.5 * air_density * airspeed * airspeed;
 
-        for (airfoil, airfoil_global_tx, mut aoa, mut airfoil_lift) in airfoil_query.iter_mut() {
-            let angle_of_attack = angle_of_attack(
-                velocity.linvel,
-                airfoil.force_base_dir(airfoil_global_tx),
-                airfoil_global_tx.forward(),
-            );
+        for child in children_query.iter_descendants(plane_entity) {
+            if let Ok((airfoil, airfoil_global_tx, mut aoa, mut airfoil_lift)) =
+                airfoil_query.get_mut(child)
+            {
+                let angle_of_attack = angle_of_attack(
+                    velocity.linvel,
+                    airfoil.force_base_dir(airfoil_global_tx),
+                    airfoil_global_tx.forward(),
+                );
 
-            aoa.0 = angle_of_attack;
+                aoa.0 = angle_of_attack;
 
-            let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
+                let lift_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
 
-            let lift_coefficient = airfoil
-                .lift_coefficient_samples
-                .get(lift_coefficient_index)
-                .unwrap_or(&0.0);
+                let lift_coefficient = airfoil
+                    .lift_coefficient_samples
+                    .get(lift_coefficient_index)
+                    .unwrap_or(&0.0);
 
-            let lift = lift_coefficient * dynamic_pressure * airfoil.area;
-            airfoil_lift.0 = lift;
+                let lift = lift_coefficient * dynamic_pressure * airfoil.area;
+                airfoil_lift.0 = lift;
 
-            external_force.add_assign(ExternalForce::at_point(
-                airfoil.force_base_dir(airfoil_global_tx) * lift,
-                airfoil_global_tx.translation(),
-                centre_of_gravity.global,
-            ));
+                external_force.add_assign(ExternalForce::at_point(
+                    airfoil.force_base_dir(airfoil_global_tx) * lift,
+                    airfoil_global_tx.translation(),
+                    centre_of_gravity.global,
+                ));
 
-            let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
-            let drag = drag_coefficient * dynamic_pressure * airfoil.area;
-            external_force.force += -velocity.linvel.normalize_or_zero() * drag;
+                let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
+                let drag = drag_coefficient * dynamic_pressure * airfoil.area;
+                external_force.force += -velocity.linvel.normalize_or_zero() * drag;
 
-            flight.drag = drag;
+                flight.drag = drag;
 
-            gizmos.line(
-                airfoil_global_tx.translation(),
-                airfoil_global_tx.translation() + airfoil.force_base_dir(airfoil_global_tx) * lift,
-                Color::YELLOW,
-            );
+                gizmos.line(
+                    airfoil_global_tx.translation(),
+                    airfoil_global_tx.translation()
+                        + airfoil.force_base_dir(airfoil_global_tx) * lift,
+                    Color::YELLOW,
+                );
+            }
         }
     }
 }
