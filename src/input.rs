@@ -168,10 +168,10 @@ fn handle_gamepad_input(
         control.elevators = (action_state.clamped_value(PlaneAction::Pitch) * 10.0).to_radians();
     }
     if action_state.pressed(PlaneAction::Roll) {
-        control.ailerons = (action_state.clamped_value(PlaneAction::Roll) * 1.0).to_radians();
+        control.ailerons = (action_state.clamped_value(PlaneAction::Roll) * 0.25).to_radians();
     }
     if action_state.pressed(PlaneAction::Throttle) {
-        thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 10.0;
+        thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 50.0;
         thrust.0 = thrust.0.clamp(0., spec.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
