@@ -110,7 +110,7 @@ fn update_hud_model(
         .unwrap_or(-1.0) as f32;
 
     model.altitude = global_tx.translation().y;
-    model.airspeed = *airspeed;
+    model.airspeed = *airspeed * 60. * 60. / 1000.;
     model.drag = flight.drag;
     model.thrust = *thrust;
     model.weight = flight.weight;
@@ -171,6 +171,7 @@ impl Vec3Model {
 
 trait UiExt {
     fn float_label(&mut self, txt: &str, val: f32, color: Color32, width: usize);
+    fn float_edit(&mut self, label: &str, value: &mut String);
     fn vec3(&mut self, label: &str, value: &mut Vec3Model);
     fn wing(&mut self, label: &str, value: &mut WingModel);
 }
@@ -192,6 +193,11 @@ impl UiExt for Ui {
             ))
             .color(color),
         );
+    }
+
+    fn float_edit(&mut self, label: &str, value: &mut String) {
+        self.label(label);
+        self.text_edit_singleline(value);
     }
 
     fn vec3(&mut self, label: &str, value: &mut Vec3Model) {
@@ -230,12 +236,16 @@ impl UiExt for Ui {
 fn update_hud_ui(
     mut contexts: EguiContexts,
     mut model_query: Query<&mut HudModel>,
+    plane_spec_query: Query<&PlaneSpec>,
     mut plane_spec_model_query: Query<&mut PlaneSpecModel>,
     mut fog_control: Query<&mut FogControl>,
     mut sun_control: Query<&mut SunControl>,
     mut build_plane_event: EventWriter<BuildPlaneEvent>,
 ) {
     let Ok(mut model) = model_query.get_single_mut() else {
+        return;
+    };
+    let Ok(plane_spec) = plane_spec_query.get_single() else {
         return;
     };
     let Ok(mut plane_spec_model) = plane_spec_model_query.get_single_mut() else {
@@ -285,7 +295,10 @@ fn update_hud_ui(
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let space = 10.;
-                ui.vec3("fuselage", &mut plane_spec_model.fuselage);
+                ui.float_edit("thrust", &mut plane_spec_model.thrust);
+                ui.add_space(space);
+                ui.vec3("fuselage", &mut plane_spec_model.fuselage.size);
+                ui.float_edit("mass", &mut plane_spec_model.fuselage.mass);
                 ui.add_space(space);
                 ui.wing("wings", &mut plane_spec_model.wings);
                 ui.add_space(space);
@@ -308,6 +321,7 @@ fn update_hud_ui(
                 build_plane_event.send(BuildPlaneEvent(plane_spec_model.to_spec()));
             }
             if ui.button("Build").clicked() {
+                *plane_spec_model = PlaneSpecModel::new(plane_spec);
                 model.show_build = !model.show_build;
             }
             if ui.button("Environment").clicked() {

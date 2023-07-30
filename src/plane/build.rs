@@ -37,7 +37,7 @@ pub fn build_plane(
                 Altitude::default(),
                 SpatialBundle::from_transform(Transform::from_xyz(
                     world::SPACING as f32 * 0.5,
-                    1.5,
+                    2.0,
                     0.,
                 )),
                 RigidBody::Dynamic,
@@ -55,6 +55,8 @@ pub fn build_plane(
                     &plane.fuselage,
                     fuselage_color,
                 );
+
+                build_wheels(parent, &mut meshes, &mut materials, &plane.fuselage);
 
                 build_propellor(
                     parent,
@@ -102,9 +104,54 @@ pub fn build_fuselage(
             material: materials.add(fuselage_color.into()),
             ..default()
         },
-        Friction::new(0.01),
+        Friction::new(0.0),
         Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
-        ColliderMassProperties::Density(2.0),
+        ColliderMassProperties::Mass(spec.mass),
+    ));
+}
+
+pub fn build_wheels(
+    parent: &mut ChildBuilder<'_, '_, '_>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    spec: &FuselageSpec,
+) {
+    for side in [Side::Left, Side::Right] {
+        parent.spawn((
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cylinder {
+                    radius: 0.2,
+                    height: 0.1,
+                    ..default()
+                })),
+                transform: Transform::from_xyz(
+                    spec.size.x * 0.5 * side.offset(),
+                    -spec.size.y,
+                    -spec.size.z * 0.5,
+                )
+                .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
+                material: materials.add(Color::BLACK.into()),
+                ..default()
+            },
+            Friction::new(0.0),
+            Collider::ball(0.2),
+        ));
+    }
+
+    parent.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cylinder {
+                radius: 0.2,
+                height: 0.1,
+                ..default()
+            })),
+            transform: Transform::from_xyz(0.0, -spec.size.y, 5.)
+                .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
+            material: materials.add(Color::BLACK.into()),
+            ..default()
+        },
+        Friction::new(0.0),
+        Collider::ball(0.2),
     ));
 }
 
@@ -172,9 +219,9 @@ fn build_wing(
             Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),
         ))
         .with_children(|parent| {
-            let aileron_width = spec.size.x * 0.25;
+            let aileron_width = spec.size.x * 1.0;
             let aileron_height = spec.size.y;
-            let aileron_length = spec.size.z * 0.1;
+            let aileron_length = spec.size.z * 0.25;
 
             parent.spawn((
                 Airfoil {
@@ -224,7 +271,7 @@ pub fn build_propellor(
             transform: Transform::from_xyz(0.0, 0.0, -spec.size.z * 0.5),
             ..default()
         },
-        Collider::cuboid(size.x * 0.5, size.y * 0.5, size.z * 0.5),
+        // Collider::cuboid(size.x * 0.5, size.y * 0.5, size.z * 0.5),
     ));
 }
 

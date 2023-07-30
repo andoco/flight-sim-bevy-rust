@@ -6,7 +6,8 @@ use super::Vec3Model;
 
 #[derive(Component, Default)]
 pub struct PlaneSpecModel {
-    pub fuselage: Vec3Model,
+    pub thrust: String,
+    pub fuselage: BodyModel,
     pub wings: WingModel,
     pub tail: Vec3Model,
     pub tail_horizontal: WingModel,
@@ -26,6 +27,21 @@ fn string_to_vec(value: &str) -> Vec<f32> {
         .split(",")
         .map(|s| s.parse().unwrap_or_default())
         .collect()
+}
+
+#[derive(Default)]
+pub struct BodyModel {
+    pub size: Vec3Model,
+    pub mass: String,
+}
+
+impl BodyModel {
+    pub fn new(size: Vec3, mass: f32) -> Self {
+        Self {
+            size: Vec3Model::new(size),
+            mass: mass.to_string(),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -60,7 +76,8 @@ impl WingModel {
 impl PlaneSpecModel {
     pub fn new(spec: &PlaneSpec) -> Self {
         Self {
-            fuselage: Vec3Model::new(spec.fuselage.size),
+            thrust: spec.thrust.to_string(),
+            fuselage: BodyModel::new(spec.fuselage.size, spec.fuselage.mass),
             wings: WingModel::new(&spec.wings),
             tail: Vec3Model::new(spec.tail.size),
             tail_horizontal: WingModel::new(&spec.tail.horizontal),
@@ -72,12 +89,14 @@ impl PlaneSpecModel {
 impl PlaneSpecModel {
     pub fn to_spec(&self) -> PlaneSpec {
         PlaneSpec {
+            thrust: self.thrust.parse().unwrap_or_default(),
             fuselage: FuselageSpec {
                 size: vec3(
-                    self.fuselage.x.parse().unwrap_or_default(),
-                    self.fuselage.y.parse().unwrap_or_default(),
-                    self.fuselage.z.parse().unwrap_or_default(),
+                    self.fuselage.size.x.parse().unwrap_or_default(),
+                    self.fuselage.size.y.parse().unwrap_or_default(),
+                    self.fuselage.size.z.parse().unwrap_or_default(),
                 ),
+                mass: self.fuselage.mass.parse().unwrap_or_default(),
             },
             wings: self.wings.to_spec(),
             tail: TailSpec {

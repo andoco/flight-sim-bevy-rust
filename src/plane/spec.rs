@@ -26,6 +26,7 @@ impl Default for PlaneSpec {
             thrust: 150.0,
             fuselage: FuselageSpec {
                 size: vec3(1.12, 2.0, 5.3),
+                mass: 100.0,
             },
             wings: WingSpec {
                 size: vec3(5.5, 0.2, 1.5),
@@ -85,9 +86,10 @@ impl WingSpec {
 #[derive(Debug, Clone)]
 pub struct FuselageSpec {
     pub size: Vec3,
+    pub mass: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TailSpec {
     pub size: Vec3,
     pub vertical: WingSpec,
