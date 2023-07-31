@@ -64,8 +64,8 @@ fn setup_lighting(mut commands: Commands) {
         },
         SunControl {
             rotation: Quat::from_euler(
-                EulerRot::YXZ,
-                90_f32.to_radians(),
+                EulerRot::XYZ,
+                -90_f32.to_radians(),
                 0_f32.to_radians(),
                 0_f32.to_radians(),
             ),

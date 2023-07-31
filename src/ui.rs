@@ -278,12 +278,11 @@ fn update_hud_ui(
             }
 
             if let Ok(mut sun_control) = sun_control.get_single_mut() {
-                let (mut y, mut x, z) = sun_control.rotation.to_euler(EulerRot::YXZ);
+                let (mut x, mut y, z) = sun_control.rotation.to_euler(EulerRot::XYZ);
 
                 ui.group(|ui| {
                     ui.label("Sun direction");
-                    ui.add(egui::Slider::new(&mut x, 0.0..=PI * 2.0).text("x"));
-                    ui.add(egui::Slider::new(&mut y, 0.0..=PI * 2.0).text("y"));
+                    ui.add(egui::Slider::new(&mut x, 0.0..=-PI).text("x"));
                 });
 
                 sun_control.rotation = Quat::from_euler(EulerRot::YXZ, y, x, z);
