@@ -20,14 +20,18 @@ impl Plugin for PlanePlugin {
             .add_systems(
                 Update,
                 (
-                    (build_plane, build::build_plane).chain(),
-                    update_propellor,
-                    update_airfoil_control_surfaces,
-                    update_airspeed,
-                    update_thrust_forces,
-                    update_airfoil_forces,
-                )
-                    .chain(),
+                    (
+                        (build_plane, build::build_plane).chain(),
+                        update_propellor,
+                        update_airfoil_control_surfaces,
+                        update_airspeed,
+                        update_thrust_forces,
+                        update_airfoil_forces,
+                    )
+                        .chain(),
+                    draw_plane_gizmos,
+                    draw_airfoil_gizmos,
+                ),
             );
     }
 }
@@ -238,7 +242,6 @@ fn update_airfoil_forces(
     >,
     children_query: Query<&Children>,
     mut airfoil_query: Query<(&Airfoil, &GlobalTransform, &mut AngleOfAttack, &mut Lift)>,
-    mut gizmos: Gizmos,
 ) {
     for (
         plane_entity,
@@ -291,14 +294,51 @@ fn update_airfoil_forces(
                 external_force.force += -velocity.linvel.normalize_or_zero() * drag;
 
                 flight.drag = drag;
-
-                gizmos.line(
-                    airfoil_global_tx.translation(),
-                    airfoil_global_tx.translation()
-                        + airfoil.force_base_dir(airfoil_global_tx) * lift,
-                    Color::YELLOW,
-                );
             }
         }
+    }
+}
+
+const FORCE_COLOR: Color = Color::RED;
+
+fn draw_plane_gizmos(
+    plane_query: Query<
+        (
+            &GlobalTransform,
+            &Velocity,
+            &CentreOfGravity,
+            &ExternalForce,
+        ),
+        With<Plane>,
+    >,
+    mut gizmos: Gizmos,
+) {
+    for (global_tx, velocity, centre_of_gravity, external_force) in plane_query.iter() {
+        gizmos.sphere(centre_of_gravity.global, Quat::IDENTITY, 2., Color::GRAY);
+
+        gizmos.line(
+            global_tx.translation(),
+            global_tx.translation() + external_force.force,
+            FORCE_COLOR,
+        );
+
+        gizmos.line(
+            global_tx.translation(),
+            global_tx.translation() + velocity.linvel,
+            Color::GREEN,
+        );
+    }
+}
+
+fn draw_airfoil_gizmos(
+    airfoil_query: Query<(&Airfoil, &GlobalTransform, &Lift)>,
+    mut gizmos: Gizmos,
+) {
+    for (airfoil, airfoil_global_tx, Lift(lift)) in airfoil_query.iter() {
+        gizmos.line(
+            airfoil_global_tx.translation(),
+            airfoil_global_tx.translation() + airfoil.force_base_dir(airfoil_global_tx) * *lift,
+            FORCE_COLOR,
+        );
     }
 }
