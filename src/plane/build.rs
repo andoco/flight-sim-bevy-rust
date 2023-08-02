@@ -203,6 +203,7 @@ fn build_wing(
                 orientation,
                 area: spec.size.x * spec.size.z,
                 lift_coefficient_samples: spec.lift_coefficient_samples(),
+                drag_coefficient_samples: spec.drag_coefficient_samples(),
             },
             AngleOfAttack::default(),
             Lift::default(),
@@ -229,7 +230,8 @@ fn build_wing(
                 Airfoil {
                     orientation,
                     area: control_width * control_length,
-                    lift_coefficient_samples: spec.control_lift_curve_samples(),
+                    lift_coefficient_samples: spec.control_lift_coefficient_samples(),
+                    drag_coefficient_samples: spec.drag_coefficient_samples(),
                 },
                 AngleOfAttack::default(),
                 Lift::default(),

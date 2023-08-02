@@ -14,21 +14,6 @@ pub struct PlaneSpecModel {
     pub tail_vertical: WingModel,
 }
 
-fn vec_to_string(values: &Vec<f32>) -> String {
-    values
-        .iter()
-        .map(|v| v.to_string())
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
-fn string_to_vec(value: &str) -> Vec<f32> {
-    value
-        .split(",")
-        .map(|s| s.parse().unwrap_or_default())
-        .collect()
-}
-
 #[derive(Default)]
 pub struct BodyModel {
     pub size: Vec3Model,
@@ -47,16 +32,18 @@ impl BodyModel {
 #[derive(Default)]
 pub struct WingModel {
     pub size: Vec3Model,
-    pub elements: String,
-    pub knots: String,
+    pub lift_coefficient_curve: Vec<(String, String)>,
 }
 
 impl WingModel {
     fn new(value: &WingSpec) -> Self {
         Self {
             size: Vec3Model::new(value.size),
-            elements: vec_to_string(&value.lift_coefficient_elements),
-            knots: vec_to_string(&value.lift_coefficient_knots),
+            lift_coefficient_curve: value
+                .lift_coefficient_curve
+                .iter()
+                .map(|(l, a)| (l.to_string(), a.to_string()))
+                .collect(),
         }
     }
 
@@ -67,8 +54,11 @@ impl WingModel {
                 self.size.y.parse().unwrap_or_default(),
                 self.size.z.parse().unwrap_or_default(),
             ),
-            lift_coefficient_elements: string_to_vec(self.elements.as_str()),
-            lift_coefficient_knots: string_to_vec(self.knots.as_str()),
+            lift_coefficient_curve: self
+                .lift_coefficient_curve
+                .iter()
+                .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
+                .collect(),
             ..default()
         }
     }

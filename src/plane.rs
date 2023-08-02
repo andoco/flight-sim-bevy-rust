@@ -91,6 +91,7 @@ pub struct Airfoil {
     pub orientation: AirfoilOrientation,
     pub area: f32,
     pub lift_coefficient_samples: Vec<f32>,
+    pub drag_coefficient_samples: Vec<f32>,
 }
 
 impl Airfoil {
@@ -279,8 +280,14 @@ fn update_airfoil_forces(
                     centre_of_gravity.global,
                 ));
 
-                let drag_coefficient = 0.032; // For Cessna 172 at sea level and 100 knots at 0 degrees angle of attack
+                let drag_coefficient_index = (angle_of_attack.to_degrees() + 90.0) as usize;
+
+                let drag_coefficient = airfoil
+                    .drag_coefficient_samples
+                    .get(drag_coefficient_index)
+                    .unwrap_or(&0.0);
                 let drag = drag_coefficient * dynamic_pressure * airfoil.area;
+
                 external_force.force += -velocity.linvel.normalize_or_zero() * drag;
 
                 flight.drag = drag;

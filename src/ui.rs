@@ -222,12 +222,14 @@ impl UiExt for Ui {
         self.label(label);
         self.group(|ui| {
             ui.vec3("size", &mut value.size);
-            ui.label("lift coefficient");
+            ui.label("lift coefficient curve");
             ui.group(|ui| {
-                ui.label("elements");
-                ui.text_edit_singleline(&mut value.elements);
-                ui.label("knots");
-                ui.text_edit_singleline(&mut value.knots);
+                for val in value.lift_coefficient_curve.iter_mut() {
+                    ui.horizontal(|ui| {
+                        ui.float_edit("angle", &mut val.1);
+                        ui.float_edit("lift", &mut val.0);
+                    });
+                }
             });
         });
     }
@@ -278,7 +280,7 @@ fn update_hud_ui(
             }
 
             if let Ok(mut sun_control) = sun_control.get_single_mut() {
-                let (mut x, mut y, z) = sun_control.rotation.to_euler(EulerRot::XYZ);
+                let (mut x, y, z) = sun_control.rotation.to_euler(EulerRot::XYZ);
 
                 ui.group(|ui| {
                     ui.label("Sun direction");
