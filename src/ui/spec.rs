@@ -71,6 +71,16 @@ impl WingModel {
                 .iter()
                 .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
                 .collect(),
+            control_lift_coefficient_curve: self
+                .control_lift_coefficient_curve
+                .iter()
+                .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
+                .collect(),
+            drag_coefficient_curve: self
+                .drag_coefficient_curve
+                .iter()
+                .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
+                .collect(),
             ..default()
         }
     }
