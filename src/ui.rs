@@ -173,6 +173,7 @@ trait UiExt {
     fn float_label(&mut self, txt: &str, val: f32, color: Color32, width: usize);
     fn float_edit(&mut self, label: &str, value: &mut String);
     fn vec3(&mut self, label: &str, value: &mut Vec3Model);
+    fn coefficient_curve(&mut self, label: &str, value: &mut Vec<(String, String)>);
     fn wing(&mut self, label: &str, value: &mut WingModel);
 }
 
@@ -218,18 +219,36 @@ impl UiExt for Ui {
         });
     }
 
-    fn wing(&mut self, label: &str, value: &mut WingModel) {
+    fn coefficient_curve(&mut self, label: &str, value: &mut Vec<(String, String)>) {
         self.label(label);
         self.group(|ui| {
-            ui.vec3("size", &mut value.size);
-            ui.label("lift coefficient curve");
+            egui::Grid::new(format!("{}-coefficient-grid", label))
+                .min_col_width(75.)
+                .show(ui, |ui| {
+                    ui.label("angle");
+                    ui.label("lift");
+                    ui.end_row();
+
+                    for val in value.iter_mut() {
+                        ui.text_edit_singleline(&mut val.1);
+                        ui.text_edit_singleline(&mut val.0);
+                        ui.end_row();
+                    }
+                });
+        });
+    }
+
+    fn wing(&mut self, label: &str, value: &mut WingModel) {
+        self.push_id(label, |ui| {
+            ui.label(label);
             ui.group(|ui| {
-                for val in value.lift_coefficient_curve.iter_mut() {
-                    ui.horizontal(|ui| {
-                        ui.float_edit("angle", &mut val.1);
-                        ui.float_edit("lift", &mut val.0);
-                    });
-                }
+                ui.vec3("size", &mut value.size);
+                ui.coefficient_curve("lift coefficient curve", &mut value.lift_coefficient_curve);
+                ui.coefficient_curve(
+                    "control coefficient curve",
+                    &mut value.control_lift_coefficient_curve,
+                );
+                ui.coefficient_curve("drag coefficient curve", &mut value.drag_coefficient_curve);
             });
         });
     }
@@ -294,25 +313,23 @@ fn update_hud_ui(
     egui::Window::new("Build")
         .open(&mut model.show_build)
         .show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                let space = 10.;
-                ui.float_edit("thrust", &mut plane_spec_model.thrust);
-                ui.add_space(space);
-                ui.vec3("fuselage", &mut plane_spec_model.fuselage.size);
-                ui.float_edit("mass", &mut plane_spec_model.fuselage.mass);
-                ui.add_space(space);
-                ui.wing("wings", &mut plane_spec_model.wings);
-                ui.add_space(space);
-                ui.vec3("tail", &mut plane_spec_model.tail);
-                ui.add_space(space);
-                ui.wing("tail horizontal", &mut plane_spec_model.tail_horizontal);
-                ui.add_space(space);
-                ui.wing("tail vertical", &mut plane_spec_model.tail_vertical);
-                ui.add_space(space);
+            ui.scope(|ui| {
+                ui.style_mut().spacing.item_spacing.y = 10.;
+                ui.style_mut().spacing.text_edit_width = 100.;
 
-                if ui.button("Build").clicked() {
-                    build_plane_event.send(BuildPlaneEvent(plane_spec_model.to_spec()));
-                }
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.float_edit("thrust", &mut plane_spec_model.thrust);
+                    ui.vec3("fuselage", &mut plane_spec_model.fuselage.size);
+                    ui.float_edit("mass", &mut plane_spec_model.fuselage.mass);
+                    ui.wing("wings", &mut plane_spec_model.wings);
+                    ui.vec3("tail", &mut plane_spec_model.tail);
+                    ui.wing("tail horizontal", &mut plane_spec_model.tail_horizontal);
+                    ui.wing("tail vertical", &mut plane_spec_model.tail_vertical);
+
+                    if ui.button("Build").clicked() {
+                        build_plane_event.send(BuildPlaneEvent(plane_spec_model.to_spec()));
+                    }
+                });
             });
         });
 

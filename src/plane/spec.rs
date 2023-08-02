@@ -64,7 +64,7 @@ impl Default for PlaneSpec {
                         (0.25, 10.0),
                         (0.0, 90.0),
                     ],
-                    control_lift_curve: vec![
+                    control_lift_coefficient_curve: vec![
                         (-0.0, -90.0),
                         (-0.15, -10.0),
                         (0.0, 0.0),
@@ -83,7 +83,7 @@ pub struct WingSpec {
     pub size: Vec3,
     pub lift_coefficient_curve: Vec<(f32, f32)>,
     pub drag_coefficient_curve: Vec<(f32, f32)>,
-    pub control_lift_curve: Vec<(f32, f32)>,
+    pub control_lift_coefficient_curve: Vec<(f32, f32)>,
 }
 
 impl Default for WingSpec {
@@ -91,7 +91,7 @@ impl Default for WingSpec {
         Self {
             size: vec3(2., 0.2, 1.0),
             lift_coefficient_curve: vec![(-0.0, -90.0), (-0.15, -10.0), (0.15, 10.0), (0.0, 90.0)],
-            control_lift_curve: vec![
+            control_lift_coefficient_curve: vec![
                 (-0.0, -90.0),
                 (-0.15, -10.0),
                 (0.0, 0.0),
@@ -124,7 +124,7 @@ impl WingSpec {
     }
 
     pub fn control_lift_coefficient_samples(&self) -> Vec<f32> {
-        Self::build_samples(self.control_lift_curve.clone())
+        Self::build_samples(self.control_lift_coefficient_curve.clone())
     }
 
     pub fn drag_coefficient_samples(&self) -> Vec<f32> {
