@@ -1,3 +1,4 @@
+mod hud;
 mod spec;
 
 use std::{f32::consts::PI, time::Duration};
@@ -28,11 +29,14 @@ pub struct HudUiPlugin;
 impl Plugin for HudUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(EguiPlugin)
-            .add_systems(Startup, (setup, setup_indicators))
-            .add_systems(Update, update_hud_ui)
+            .add_systems(Startup, (setup, setup_indicators, hud::setup))
+            .add_systems(Update, (update_hud_ui, hud::hud_indicators))
             .add_systems(
                 Update,
-                update_hud_model.run_if(on_timer(Duration::from_millis(100))),
+                (
+                    update_hud_model.run_if(on_timer(Duration::from_millis(100))),
+                    hud::hud_gizmos,
+                ),
             );
     }
 }
@@ -44,10 +48,11 @@ struct AirfoilModel {
 }
 
 #[derive(Component, Default)]
-struct HudModel {
+pub struct HudModel {
     fps: f32,
     altitude: f32,
     thrust: f32,
+    max_thrust: f32,
     airspeed: f32,
     bearing: f32,
     wing_left: AirfoilModel,
@@ -91,12 +96,18 @@ fn setup(mut commands: Commands, mut contexts: EguiContexts) {
 }
 
 fn update_hud_model(
-    plane_query: Query<(&GlobalTransform, &PlaneFlight, &Thrust, &Airspeed)>,
+    plane_query: Query<(
+        &GlobalTransform,
+        &PlaneFlight,
+        &Thrust,
+        &Airspeed,
+        &PlaneSpec,
+    )>,
     airfoil_query: Query<(&AirfoilPosition, &AngleOfAttack, &Lift)>,
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<DiagnosticsStore>,
 ) {
-    let Ok((global_tx,  flight, Thrust(thrust), Airspeed(airspeed))) = plane_query.get_single() else {
+    let Ok((global_tx,  flight, Thrust(thrust), Airspeed(airspeed), spec)) = plane_query.get_single() else {
         return;
     };
 
@@ -113,6 +124,7 @@ fn update_hud_model(
     model.airspeed = *airspeed * 60. * 60. / 1000.;
     model.drag = flight.drag;
     model.thrust = *thrust;
+    model.max_thrust = spec.thrust;
     model.weight = flight.weight;
     model.bearing = global_tx
         .compute_transform()
