@@ -70,7 +70,7 @@ pub fn build_plane(
                     parent,
                     &mut meshes,
                     &mut materials,
-                    vec3(0., 0., 0.0),
+                    vec3(0., 0., 1.0),
                     &plane.wings,
                     wing_color,
                 );

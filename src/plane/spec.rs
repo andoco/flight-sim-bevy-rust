@@ -60,7 +60,7 @@ impl Default for PlaneSpec {
                     lift_coefficient_curve: vec![
                         (0.0, -90.0),
                         (-0.15, -10.0),
-                        (0.15, 0.0),
+                        (-0.025, 0.0),
                         (0.25, 10.0),
                         (0.0, 90.0),
                     ],
