@@ -96,6 +96,7 @@ pub struct Airfoil {
     pub area: f32,
     pub lift_coefficient_samples: Vec<f32>,
     pub drag_coefficient_samples: Vec<f32>,
+    pub lift_coefficient_modifier: f32,
 }
 
 impl Airfoil {
@@ -106,6 +107,9 @@ impl Airfoil {
         }
     }
 }
+
+#[derive(Component)]
+pub struct ControlSurface;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Side {
@@ -152,27 +156,55 @@ fn angle_of_attack(velocity: Vec3, up: Vec3, forward: Vec3) -> f32 {
     a2 - a1
 }
 
+// Taken from https://aviation.stackexchange.com/questions/46217/how-does-rudder-size-influence-its-ability-to-produce-lateral-lift
+fn calculate_control_surface_lift_coefficient_modifier(
+    flap_relative_chord: f32,
+    flap_deflection_angle: f32,
+) -> f32 {
+    flap_relative_chord.sqrt() * flap_deflection_angle
+}
+
 fn update_airfoil_control_surfaces(
     control_query: Query<&PlaneControl>,
-    wing_query: Query<(&AirfoilPosition, &Parent, &Children)>,
-    mut control_airfoil_query: Query<&mut Transform, With<Airfoil>>,
+    mut wing_query: Query<(&mut Airfoil, &AirfoilPosition, &Parent, &Children)>,
+    mut control_airfoil_query: Query<&mut Transform, With<ControlSurface>>,
 ) {
-    for (position, entity, children) in wing_query.iter() {
+    for (mut airfoil, position, entity, children) in wing_query.iter_mut() {
         if let Ok(control) = control_query.get(**entity) {
             for child in children.iter() {
                 if let Ok(mut control_airfoil_tx) = control_airfoil_query.get_mut(*child) {
                     match position {
                         AirfoilPosition::Wing(Side::Left) => {
                             control_airfoil_tx.rotation = Quat::from_rotation_x(-control.ailerons);
+                            airfoil.lift_coefficient_modifier =
+                                calculate_control_surface_lift_coefficient_modifier(
+                                    0.25,
+                                    -control.ailerons,
+                                );
                         }
                         AirfoilPosition::Wing(Side::Right) => {
                             control_airfoil_tx.rotation = Quat::from_rotation_x(control.ailerons);
+                            airfoil.lift_coefficient_modifier =
+                                calculate_control_surface_lift_coefficient_modifier(
+                                    0.25,
+                                    control.ailerons,
+                                );
                         }
                         AirfoilPosition::TailWing(_) => {
                             control_airfoil_tx.rotation = Quat::from_rotation_x(control.elevators);
+                            airfoil.lift_coefficient_modifier =
+                                calculate_control_surface_lift_coefficient_modifier(
+                                    0.25,
+                                    control.elevators,
+                                );
                         }
                         AirfoilPosition::VerticalTail => {
                             control_airfoil_tx.rotation = Quat::from_rotation_y(control.rudder);
+                            airfoil.lift_coefficient_modifier =
+                                calculate_control_surface_lift_coefficient_modifier(
+                                    0.25,
+                                    control.rudder,
+                                );
                         }
                     }
                 }
@@ -274,7 +306,9 @@ fn update_airfoil_forces(
                     .get(lift_coefficient_index)
                     .unwrap_or(&0.0);
 
-                let lift = lift_coefficient * dynamic_pressure * airfoil.area;
+                let lift = (lift_coefficient + airfoil.lift_coefficient_modifier)
+                    * dynamic_pressure
+                    * airfoil.area;
                 airfoil_lift.0 = lift;
 
                 external_force.add_assign(ExternalForce::at_point(

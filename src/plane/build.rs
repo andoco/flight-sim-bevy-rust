@@ -9,8 +9,8 @@ use crate::{
 
 use super::{
     spec::{FuselageSpec, PlaneSpec, TailSpec, WingSpec},
-    Airfoil, AirfoilOrientation, AirfoilPosition, Airspeed, Altitude, AngleOfAttack, Lift, Plane,
-    PlaneControl, PlaneFlight, Propellor, Side, Thrust,
+    Airfoil, AirfoilOrientation, AirfoilPosition, Airspeed, Altitude, AngleOfAttack,
+    ControlSurface, Lift, Plane, PlaneControl, PlaneFlight, Propellor, Side, Thrust,
 };
 
 pub fn build_plane(
@@ -204,6 +204,7 @@ fn build_wing(
                 area: spec.size.x * spec.size.z,
                 lift_coefficient_samples: spec.lift_coefficient_samples(),
                 drag_coefficient_samples: spec.drag_coefficient_samples(),
+                lift_coefficient_modifier: 0.,
             },
             AngleOfAttack::default(),
             Lift::default(),
@@ -227,14 +228,7 @@ fn build_wing(
             let control_length = spec.size.z * 0.25;
 
             parent.spawn((
-                Airfoil {
-                    orientation,
-                    area: control_width * control_length,
-                    lift_coefficient_samples: spec.control_lift_coefficient_samples(),
-                    drag_coefficient_samples: spec.drag_coefficient_samples(),
-                },
-                AngleOfAttack::default(),
-                Lift::default(),
+                ControlSurface,
                 PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Box::new(
                         control_width,
