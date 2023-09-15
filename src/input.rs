@@ -41,6 +41,7 @@ pub enum PlaneAction {
     // View
     FollowBehind,
     FollowAbove,
+    FollowSide,
     FollowInside,
 }
 
@@ -60,7 +61,8 @@ fn add_plane_input(mut commands: Commands) {
             .insert(KeyCode::Z, PlaneAction::ThrustDown)
             .insert(KeyCode::F1, PlaneAction::FollowBehind)
             .insert(KeyCode::F2, PlaneAction::FollowAbove)
-            .insert(KeyCode::F3, PlaneAction::FollowInside)
+            .insert(KeyCode::F3, PlaneAction::FollowSide)
+            .insert(KeyCode::F4, PlaneAction::FollowInside)
             .insert(
                 SingleAxis::symmetric(GamepadAxisType::LeftStickY, 0.25),
                 PlaneAction::Pitch,
@@ -79,6 +81,7 @@ fn add_plane_input(mut commands: Commands) {
             )
             .insert(GamepadButtonType::DPadDown, PlaneAction::FollowBehind)
             .insert(GamepadButtonType::DPadUp, PlaneAction::FollowAbove)
+            .insert(GamepadButtonType::DPadRight, PlaneAction::FollowSide)
             .insert(GamepadButtonType::DPadLeft, PlaneAction::FollowInside)
             .build(),
     });
@@ -89,11 +92,11 @@ fn handle_keyboard_input(
     mut plane_query: Query<(&PlaneSpec, &mut PlaneControl, &mut Thrust), With<Plane>>,
     time: Res<Time>,
 ) {
-    let Ok(action_state  ) = action_query.get_single_mut() else {
-        return
+    let Ok(action_state) = action_query.get_single_mut() else {
+        return;
     };
     let Ok((spec, mut control, mut thrust)) = plane_query.get_single_mut() else {
-        return
+        return;
     };
 
     if action_state.just_released(PlaneAction::PitchUp)
@@ -149,11 +152,13 @@ fn handle_gamepad_input(
     >,
     time: Res<Time>,
 ) {
-    let Ok(action_state  ) = action_query.get_single_mut() else {
-        return
+    let Ok(action_state) = action_query.get_single_mut() else {
+        return;
     };
-    let Ok((entity, spec, mut external_force,  mut control, mut thrust)) = plane_query.get_single_mut() else {
-        return
+    let Ok((entity, spec, mut external_force, mut control, mut thrust)) =
+        plane_query.get_single_mut()
+    else {
+        return;
     };
 
     if action_state.just_released(PlaneAction::Pitch)
@@ -187,6 +192,11 @@ fn handle_gamepad_input(
         commands
             .entity(entity)
             .insert(Follow(camera::FollowKind::Behind));
+    }
+    if action_state.just_pressed(PlaneAction::FollowSide) {
+        commands
+            .entity(entity)
+            .insert(Follow(camera::FollowKind::Side));
     }
     if action_state.just_pressed(PlaneAction::FollowInside) {
         commands
