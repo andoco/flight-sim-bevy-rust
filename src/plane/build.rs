@@ -217,7 +217,8 @@ fn build_wing(
                 material: materials.add(wing_color.into()),
                 transform: Transform::from_translation(
                     pos + vec3(spec.size.x * 0.5 * offset, 0.0, 0.0),
-                ),
+                )
+                .with_rotation(Quat::from_rotation_x(spec.angle)),
                 ..default()
             },
             Collider::cuboid(spec.size.x * 0.5, spec.size.y * 0.5, spec.size.z * 0.5),

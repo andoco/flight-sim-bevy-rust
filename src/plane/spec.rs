@@ -60,10 +60,11 @@ impl Default for PlaneSpec {
                     lift_coefficient_curve: vec![
                         (0.0, -90.0),
                         (-0.15, -10.0),
-                        (-0.025, 0.0),
-                        (0.25, 10.0),
+                        (0.0, 0.0),
+                        (0.15, 10.0),
                         (0.0, 90.0),
                     ],
+                    angle: 0.25_f32.to_radians(),
                     ..default()
                 },
             },
@@ -76,6 +77,7 @@ pub struct WingSpec {
     pub size: Vec3,
     pub lift_coefficient_curve: Vec<(f32, f32)>,
     pub drag_coefficient_curve: Vec<(f32, f32)>,
+    pub angle: f32,
 }
 
 impl Default for WingSpec {
@@ -84,6 +86,7 @@ impl Default for WingSpec {
             size: vec3(2., 0.2, 1.0),
             lift_coefficient_curve: vec![(-0.0, -90.0), (-0.15, -10.0), (0.15, 10.0), (0.0, 90.0)],
             drag_coefficient_curve: vec![(0.032, -90.0), (0.032, 90.0)],
+            angle: 0.,
         }
     }
 }
