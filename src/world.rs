@@ -30,6 +30,7 @@ impl Plugin for WorldPlugin {
             .insert_resource(Rand {
                 perlin: Perlin::new(1),
             })
+            .insert_resource(GizmosControl::default())
             .add_systems(Startup, (setup_lighting, setup_ground))
             .add_systems(
                 Update,
@@ -40,6 +41,11 @@ impl Plugin for WorldPlugin {
                 ),
             );
     }
+}
+
+#[derive(Resource, Default)]
+pub struct GizmosControl {
+    pub show: bool,
 }
 
 fn setup_lighting(mut commands: Commands) {

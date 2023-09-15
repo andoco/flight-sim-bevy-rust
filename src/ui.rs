@@ -19,7 +19,7 @@ use crate::{
         spec::PlaneSpec, AirfoilPosition, Airspeed, AngleOfAttack, BuildPlaneEvent, Lift,
         PlaneFlight, Side, Thrust,
     },
-    world::SunControl,
+    world::{GizmosControl, SunControl},
 };
 
 use self::spec::{PlaneSpecModel, WingModel};
@@ -271,6 +271,7 @@ fn update_hud_ui(
     mut plane_spec_model_query: Query<&mut PlaneSpecModel>,
     mut fog_control: Query<&mut FogControl>,
     mut sun_control: Query<&mut SunControl>,
+    mut gizmos_control: ResMut<GizmosControl>,
     mut build_plane_event: EventWriter<BuildPlaneEvent>,
 ) {
     let Ok(mut model) = model_query.get_single_mut() else {
@@ -318,6 +319,8 @@ fn update_hud_ui(
 
                 sun_control.rotation = Quat::from_euler(EulerRot::YXZ, y, x, z);
             }
+
+            ui.checkbox(&mut gizmos_control.show, "Gizmos");
         });
 
     egui::Window::new("Build")

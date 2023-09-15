@@ -7,7 +7,7 @@ use std::ops::AddAssign;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::physics::CentreOfGravity;
+use crate::{physics::CentreOfGravity, world::GizmosControl};
 
 use self::spec::PlaneSpec;
 
@@ -345,8 +345,13 @@ fn draw_plane_gizmos(
         ),
         With<Plane>,
     >,
+    gizmos_control: Res<GizmosControl>,
     mut gizmos: Gizmos,
 ) {
+    if !gizmos_control.show {
+        return;
+    }
+
     for (global_tx, velocity, centre_of_gravity, external_force) in plane_query.iter() {
         gizmos.sphere(centre_of_gravity.global, Quat::IDENTITY, 2., Color::GRAY);
 
@@ -366,8 +371,13 @@ fn draw_plane_gizmos(
 
 fn draw_airfoil_gizmos(
     airfoil_query: Query<(&Airfoil, &GlobalTransform, &Lift)>,
+    gizmos_control: Res<GizmosControl>,
     mut gizmos: Gizmos,
 ) {
+    if !gizmos_control.show {
+        return;
+    }
+
     for (airfoil, airfoil_global_tx, Lift(lift)) in airfoil_query.iter() {
         gizmos.line(
             airfoil_global_tx.translation(),
