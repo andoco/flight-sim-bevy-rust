@@ -33,7 +33,6 @@ impl BodyModel {
 pub struct WingModel {
     pub size: Vec3Model,
     pub lift_coefficient_curve: Vec<(String, String)>,
-    pub control_lift_coefficient_curve: Vec<(String, String)>,
     pub drag_coefficient_curve: Vec<(String, String)>,
 }
 
@@ -43,11 +42,6 @@ impl WingModel {
             size: Vec3Model::new(value.size),
             lift_coefficient_curve: value
                 .lift_coefficient_curve
-                .iter()
-                .map(|(l, a)| (l.to_string(), a.to_string()))
-                .collect(),
-            control_lift_coefficient_curve: value
-                .control_lift_coefficient_curve
                 .iter()
                 .map(|(l, a)| (l.to_string(), a.to_string()))
                 .collect(),
@@ -68,11 +62,6 @@ impl WingModel {
             ),
             lift_coefficient_curve: self
                 .lift_coefficient_curve
-                .iter()
-                .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
-                .collect(),
-            control_lift_coefficient_curve: self
-                .control_lift_coefficient_curve
                 .iter()
                 .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
                 .collect(),

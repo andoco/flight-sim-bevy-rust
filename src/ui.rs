@@ -107,7 +107,9 @@ fn update_hud_model(
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<DiagnosticsStore>,
 ) {
-    let Ok((global_tx,  flight, Thrust(thrust), Airspeed(airspeed), spec)) = plane_query.get_single() else {
+    let Ok((global_tx, flight, Thrust(thrust), Airspeed(airspeed), spec)) =
+        plane_query.get_single()
+    else {
         return;
     };
 
@@ -256,10 +258,6 @@ impl UiExt for Ui {
             ui.group(|ui| {
                 ui.vec3("size", &mut value.size);
                 ui.coefficient_curve("lift coefficient curve", &mut value.lift_coefficient_curve);
-                ui.coefficient_curve(
-                    "control coefficient curve",
-                    &mut value.control_lift_coefficient_curve,
-                );
                 ui.coefficient_curve("drag coefficient curve", &mut value.drag_coefficient_curve);
             });
         });
