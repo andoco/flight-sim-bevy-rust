@@ -61,6 +61,11 @@ pub struct HudModel {
     tail_wing_right: AirfoilModel,
     weight: f32,
     drag: f32,
+}
+
+#[derive(Component, Default)]
+pub struct WindowModel {
+    show_stats: bool,
     show_environment: bool,
     show_build: bool,
 }
@@ -90,6 +95,7 @@ fn setup(mut commands: Commands, mut contexts: EguiContexts) {
     ctx.set_fonts(fonts);
 
     commands.spawn((
+        WindowModel::default(),
         HudModel::default(),
         PlaneSpecModel::new(&PlaneSpec::default()),
     ));
@@ -266,7 +272,8 @@ impl UiExt for Ui {
 
 fn update_hud_ui(
     mut contexts: EguiContexts,
-    mut model_query: Query<&mut HudModel>,
+    model_query: Query<&mut HudModel>,
+    mut window_model_query: Query<&mut WindowModel>,
     plane_spec_query: Query<&PlaneSpec>,
     mut plane_spec_model_query: Query<&mut PlaneSpecModel>,
     mut fog_control: Query<&mut FogControl>,
@@ -274,7 +281,10 @@ fn update_hud_ui(
     mut gizmos_control: ResMut<GizmosControl>,
     mut build_plane_event: EventWriter<BuildPlaneEvent>,
 ) {
-    let Ok(mut model) = model_query.get_single_mut() else {
+    let Ok(model) = model_query.get_single() else {
+        return;
+    };
+    let Ok(mut window_model) = window_model_query.get_single_mut() else {
         return;
     };
     let Ok(plane_spec) = plane_spec_query.get_single() else {
@@ -296,8 +306,47 @@ fn update_hud_ui(
         }
     };
 
+    egui::Window::new("Stats")
+        .open(&mut window_model.show_stats)
+        .show(ctx, |ui| {
+            ui.scope(|ui| {
+                ui.style_mut().spacing.item_spacing.y = 10.;
+
+                ui.float_label("fps", model.fps, normal_color, width);
+                ui.float_label("weight", model.weight, normal_color, width);
+                ui.float_label("altitude", model.altitude, normal_color, width);
+                ui.float_label("airspeed", model.airspeed, normal_color, width);
+                ui.float_label("drag", model.drag, normal_color, width);
+                ui.float_label("thrust", model.thrust, normal_color, width);
+                ui.float_label("bearing", model.bearing, normal_color, width);
+
+                let groups = [
+                    ("wing_left", model.wing_left.lift, model.wing_left.aoa),
+                    ("wing_right", model.wing_right.lift, model.wing_right.aoa),
+                    (
+                        "tail_left",
+                        model.tail_wing_left.lift,
+                        model.tail_wing_left.aoa,
+                    ),
+                    (
+                        "tail_right",
+                        model.tail_wing_right.lift,
+                        model.tail_wing_right.aoa,
+                    ),
+                ];
+
+                for (label, lift, aoa) in groups.iter() {
+                    ui.group(|ui| {
+                        ui.label(*label);
+                        ui.float_label("aoa", *aoa, normal_color, width);
+                        ui.float_label("lift", *lift, lift_color(*lift), width);
+                    });
+                }
+            });
+        });
+
     egui::Window::new("Environment")
-        .open(&mut model.show_environment)
+        .open(&mut window_model.show_environment)
         .show(ctx, |ui| {
             if let Ok(mut fog_control) = fog_control.get_single_mut() {
                 ui.group(|ui| {
@@ -324,7 +373,7 @@ fn update_hud_ui(
         });
 
     egui::Window::new("Build")
-        .open(&mut model.show_build)
+        .open(&mut window_model.show_build)
         .show(ctx, |ui| {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing.y = 10.;
@@ -346,53 +395,30 @@ fn update_hud_ui(
             });
         });
 
-    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-        ui.horizontal(|ui| {
-            if ui.button("Restart").clicked() {
-                build_plane_event.send(BuildPlaneEvent(plane_spec_model.to_spec()));
-            }
-            if ui.button("Build").clicked() {
-                *plane_spec_model = PlaneSpecModel::new(plane_spec);
-                model.show_build = !model.show_build;
-            }
-            if ui.button("Environment").clicked() {
-                model.show_environment = !model.show_environment;
-            }
-
-            ui.float_label("fps", model.fps, normal_color, width);
-            ui.float_label("weight", model.weight, normal_color, width);
-            ui.float_label("altitude", model.altitude, normal_color, width);
-            ui.float_label("airspeed", model.airspeed, normal_color, width);
-            ui.float_label("drag", model.drag, normal_color, width);
-            ui.float_label("thrust", model.thrust, normal_color, width);
-            ui.float_label("bearing", model.bearing, normal_color, width);
+    egui::TopBottomPanel::top("top_panel")
+        .show_separator_line(false)
+        .frame(egui::Frame {
+            fill: egui::Color32::TRANSPARENT,
+            inner_margin: 5.0.into(),
+            ..Default::default()
+        })
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("Restart").clicked() {
+                    build_plane_event.send(BuildPlaneEvent(plane_spec_model.to_spec()));
+                }
+                if ui.button("Stats").clicked() {
+                    window_model.show_stats = !window_model.show_stats;
+                }
+                if ui.button("Build").clicked() {
+                    *plane_spec_model = PlaneSpecModel::new(plane_spec);
+                    window_model.show_build = !window_model.show_build;
+                }
+                if ui.button("Environment").clicked() {
+                    window_model.show_environment = !window_model.show_environment;
+                }
+            });
         });
-
-        ui.horizontal(|ui| {
-            let groups = [
-                ("wing_left", model.wing_left.lift, model.wing_left.aoa),
-                ("wing_right", model.wing_right.lift, model.wing_right.aoa),
-                (
-                    "tail_left",
-                    model.tail_wing_left.lift,
-                    model.tail_wing_left.aoa,
-                ),
-                (
-                    "tail_right",
-                    model.tail_wing_right.lift,
-                    model.tail_wing_right.aoa,
-                ),
-            ];
-
-            for (label, lift, aoa) in groups.iter() {
-                ui.group(|ui| {
-                    ui.label(*label);
-                    ui.float_label("aoa", *aoa, normal_color, width);
-                    ui.float_label("lift", *lift, lift_color(*lift), width);
-                });
-            }
-        });
-    });
 }
 
 fn setup_indicators(mut commands: Commands) {
