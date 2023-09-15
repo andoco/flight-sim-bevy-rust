@@ -18,13 +18,19 @@ pub struct PlaneSpecModel {
 pub struct BodyModel {
     pub size: Vec3Model,
     pub mass: String,
+    pub wheel_x_offset: String,
+    pub wheel_y_offset: String,
+    pub wheel_radius: String,
 }
 
 impl BodyModel {
-    pub fn new(size: Vec3, mass: f32) -> Self {
+    pub fn new(spec: &FuselageSpec) -> Self {
         Self {
-            size: Vec3Model::new(size),
-            mass: mass.to_string(),
+            size: Vec3Model::new(spec.size),
+            mass: spec.mass.to_string(),
+            wheel_radius: spec.wheel_radius.to_string(),
+            wheel_x_offset: spec.wheel_x_offset.to_string(),
+            wheel_y_offset: spec.wheel_y_offset.to_string(),
         }
     }
 }
@@ -79,7 +85,7 @@ impl PlaneSpecModel {
     pub fn new(spec: &PlaneSpec) -> Self {
         Self {
             thrust: spec.thrust.to_string(),
-            fuselage: BodyModel::new(spec.fuselage.size, spec.fuselage.mass),
+            fuselage: BodyModel::new(&spec.fuselage),
             wings: WingModel::new(&spec.wings),
             tail: Vec3Model::new(spec.tail.size),
             tail_horizontal: WingModel::new(&spec.tail.horizontal),
@@ -99,6 +105,9 @@ impl PlaneSpecModel {
                     self.fuselage.size.z.parse().unwrap_or_default(),
                 ),
                 mass: self.fuselage.mass.parse().unwrap_or_default(),
+                wheel_radius: self.fuselage.wheel_radius.parse().unwrap_or_default(),
+                wheel_x_offset: self.fuselage.wheel_x_offset.parse().unwrap_or_default(),
+                wheel_y_offset: self.fuselage.wheel_y_offset.parse().unwrap_or_default(),
             },
             wings: self.wings.to_spec(),
             tail: TailSpec {

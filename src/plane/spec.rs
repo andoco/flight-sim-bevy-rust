@@ -27,6 +27,9 @@ impl Default for PlaneSpec {
             fuselage: FuselageSpec {
                 size: vec3(1.12, 2.0, 5.3),
                 mass: 100.0,
+                wheel_y_offset: 0.5,
+                wheel_x_offset: 0.7,
+                wheel_radius: 0.2,
             },
             wings: WingSpec {
                 size: vec3(5.5, 0.2, 1.5),
@@ -120,6 +123,9 @@ impl WingSpec {
 pub struct FuselageSpec {
     pub size: Vec3,
     pub mass: f32,
+    pub wheel_x_offset: f32,
+    pub wheel_y_offset: f32,
+    pub wheel_radius: f32,
 }
 
 #[derive(Debug, Clone, Default)]

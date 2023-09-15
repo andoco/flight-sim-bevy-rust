@@ -25,6 +25,11 @@ pub fn build_plane(
         let propellor_color = metal_color;
         let wing_color = metal_color;
 
+        let plane_y = plane.fuselage.size.y * 0.5
+            + plane.fuselage.wheel_y_offset
+            + plane.fuselage.wheel_radius * 0.5
+            + 0.2;
+
         commands
             .entity(entity)
             .insert((
@@ -37,7 +42,7 @@ pub fn build_plane(
                 Altitude::default(),
                 SpatialBundle::from_transform(Transform::from_xyz(
                     world::SPACING as f32 * 0.5,
-                    plane.fuselage.size.y * 0.5 + 0.6,
+                    plane_y,
                     0.,
                 )),
                 RigidBody::Dynamic,
@@ -116,44 +121,42 @@ pub fn build_wheels(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     spec: &FuselageSpec,
 ) {
-    let wheel_y = -spec.size.y * 0.5 + 0.5;
+    let wheel_x = spec.size.x * 0.5 + spec.wheel_x_offset;
+    let wheel_y = -(spec.size.y * 0.5 + spec.wheel_y_offset);
+    let wheel_width = 0.2;
 
     for side in [Side::Left, Side::Right] {
         parent.spawn((
             PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cylinder {
-                    radius: 0.2,
-                    height: 0.1,
+                    radius: spec.wheel_radius,
+                    height: wheel_width,
                     ..default()
                 })),
-                transform: Transform::from_xyz(
-                    spec.size.x * 0.5 * side.offset(),
-                    wheel_y,
-                    -spec.size.z * 0.5,
-                )
-                .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
+                transform: Transform::from_xyz(wheel_x * side.offset(), wheel_y, spec.size.z * 0.5)
+                    .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
                 material: materials.add(Color::BLACK.into()),
                 ..default()
             },
             Friction::new(0.0),
-            Collider::ball(0.2),
+            Collider::ball(spec.wheel_radius),
         ));
     }
 
     parent.spawn((
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cylinder {
-                radius: 0.2,
-                height: 0.1,
+                radius: spec.wheel_radius,
+                height: wheel_width,
                 ..default()
             })),
-            transform: Transform::from_xyz(0.0, wheel_y, 5.)
+            transform: Transform::from_xyz(0.0, wheel_y, -spec.size.z * 0.5)
                 .with_rotation(Quat::from_rotation_z(90_f32.to_radians())),
             material: materials.add(Color::BLACK.into()),
             ..default()
         },
         Friction::new(0.0),
-        Collider::ball(0.2),
+        Collider::ball(spec.wheel_radius),
     ));
 }
 
