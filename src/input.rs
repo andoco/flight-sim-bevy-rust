@@ -99,33 +99,30 @@ fn handle_keyboard_input(
         return;
     };
 
-    if action_state.just_released(PlaneAction::PitchUp)
-        || action_state.just_released(PlaneAction::PitchDown)
-        || action_state.just_released(PlaneAction::RollLeft)
-        || action_state.just_released(PlaneAction::RollRight)
-        || action_state.just_released(PlaneAction::YawLeft)
-        || action_state.just_released(PlaneAction::YawRight)
-    {
-        control.clear();
-    }
+    let inc_clamped = |current: f32, max_angle: f32| -> f32 {
+        (current + (max_angle / 5.)).clamp(-max_angle, max_angle)
+    };
+    let dec_clamped = |current: f32, max_angle: f32| -> f32 {
+        (current - (max_angle / 5.)).clamp(-max_angle, max_angle)
+    };
 
-    if action_state.pressed(PlaneAction::RollLeft) {
-        control.ailerons = -1_f32.to_radians();
+    if action_state.just_pressed(PlaneAction::RollLeft) {
+        control.ailerons = dec_clamped(control.ailerons, spec.wings.max_control_angle)
     }
-    if action_state.pressed(PlaneAction::RollRight) {
-        control.ailerons = 1_f32.to_radians();
+    if action_state.just_pressed(PlaneAction::RollRight) {
+        control.ailerons = inc_clamped(control.ailerons, spec.wings.max_control_angle)
     }
-    if action_state.pressed(PlaneAction::YawLeft) {
-        control.rudder = -10_f32.to_radians();
+    if action_state.just_pressed(PlaneAction::YawLeft) {
+        control.rudder = dec_clamped(control.rudder, spec.tail.vertical.max_control_angle)
     }
-    if action_state.pressed(PlaneAction::YawRight) {
-        control.rudder = 10_f32.to_radians();
+    if action_state.just_pressed(PlaneAction::YawRight) {
+        control.rudder = inc_clamped(control.rudder, spec.tail.vertical.max_control_angle)
     }
-    if action_state.pressed(PlaneAction::PitchUp) {
-        control.elevators = 10_f32.to_radians();
+    if action_state.just_pressed(PlaneAction::PitchUp) {
+        control.elevators = inc_clamped(control.elevators, spec.tail.horizontal.max_control_angle)
     }
-    if action_state.pressed(PlaneAction::PitchDown) {
-        control.elevators = -10_f32.to_radians();
+    if action_state.just_pressed(PlaneAction::PitchDown) {
+        control.elevators = dec_clamped(control.elevators, spec.tail.horizontal.max_control_angle)
     }
     if action_state.pressed(PlaneAction::ThrustUp) {
         thrust.0 += 50.0 * time.delta_seconds();

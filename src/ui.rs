@@ -17,7 +17,7 @@ use crate::{
     camera::FogControl,
     plane::{
         spec::PlaneSpec, AirfoilPosition, Airspeed, AngleOfAttack, BuildPlaneEvent, Lift,
-        PlaneFlight, Side, Thrust,
+        PlaneControl, PlaneFlight, Side, Thrust,
     },
     world::{GizmosControl, SunControl},
 };
@@ -52,6 +52,9 @@ pub struct HudModel {
     fps: f32,
     altitude: f32,
     thrust: f32,
+    ailerons: f32,
+    elevators: f32,
+    rudder: f32,
     max_thrust: f32,
     airspeed: f32,
     bearing: f32,
@@ -105,6 +108,7 @@ fn update_hud_model(
     plane_query: Query<(
         &GlobalTransform,
         &PlaneFlight,
+        &PlaneControl,
         &Thrust,
         &Airspeed,
         &PlaneSpec,
@@ -113,7 +117,7 @@ fn update_hud_model(
     mut model_query: Query<&mut HudModel>,
     diagnostics: Res<DiagnosticsStore>,
 ) {
-    let Ok((global_tx, flight, Thrust(thrust), Airspeed(airspeed), spec)) =
+    let Ok((global_tx, flight, control, Thrust(thrust), Airspeed(airspeed), spec)) =
         plane_query.get_single()
     else {
         return;
@@ -132,6 +136,9 @@ fn update_hud_model(
     model.airspeed = *airspeed * 60. * 60. / 1000.;
     model.drag = flight.drag;
     model.thrust = *thrust;
+    model.ailerons = control.ailerons;
+    model.elevators = control.elevators;
+    model.rudder = control.rudder;
     model.max_thrust = spec.thrust;
     model.weight = flight.weight;
     model.bearing = global_tx

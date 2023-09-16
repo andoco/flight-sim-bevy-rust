@@ -41,6 +41,7 @@ impl Default for PlaneSpec {
                     (0.8, 15.0),
                     (0.0, 90.0),
                 ],
+                max_control_angle: 1_f32.to_radians(),
                 ..default()
             },
             tail: TailSpec {
@@ -56,6 +57,7 @@ impl Default for PlaneSpec {
                         (0.1, 10.0),
                         (0.0, 90.0),
                     ],
+                    max_control_angle: 2_f32.to_radians(),
                     ..default()
                 },
                 horizontal: WingSpec {
@@ -68,6 +70,7 @@ impl Default for PlaneSpec {
                         (0.0, 90.0),
                     ],
                     angle: 0.25_f32.to_radians(),
+                    max_control_angle: 5_f32.to_radians(),
                     ..default()
                 },
             },
@@ -81,6 +84,7 @@ pub struct WingSpec {
     pub lift_coefficient_curve: Vec<(f32, f32)>,
     pub drag_coefficient_curve: Vec<(f32, f32)>,
     pub angle: f32,
+    pub max_control_angle: f32,
 }
 
 impl Default for WingSpec {
@@ -90,6 +94,7 @@ impl Default for WingSpec {
             lift_coefficient_curve: vec![(-0.0, -90.0), (-0.15, -10.0), (0.15, 10.0), (0.0, 90.0)],
             drag_coefficient_curve: vec![(0.032, -90.0), (0.032, 90.0)],
             angle: 0.,
+            max_control_angle: 1_f32.to_radians(),
         }
     }
 }

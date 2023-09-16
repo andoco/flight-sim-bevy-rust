@@ -3,6 +3,8 @@ use bevy::{
     prelude::*,
 };
 
+use crate::plane::spec::PlaneSpec;
+
 use super::HudModel;
 
 #[derive(Component)]
@@ -63,8 +65,15 @@ pub fn hud_indicators(
     }
 }
 
-pub fn hud_gizmos(hud_model: Query<&HudModel>, mut gizmos: Gizmos) {
+pub fn hud_gizmos(
+    hud_model: Query<&HudModel>,
+    plane_spec_query: Query<&PlaneSpec>,
+    mut gizmos: Gizmos,
+) {
     let Ok(hud) = hud_model.get_single() else {
+        return;
+    };
+    let Ok(spec) = plane_spec_query.get_single() else {
         return;
     };
 
@@ -72,5 +81,20 @@ pub fn hud_gizmos(hud_model: Query<&HudModel>, mut gizmos: Gizmos) {
     let x = -100.;
     let y = (-h / 2.) + (h / hud.max_thrust * hud.thrust);
     gizmos.rect_2d(vec2(x, 0.), 0., vec2(12., h + 8.), Color::ORANGE);
+    gizmos.line_2d(vec2(x - 5., y), vec2(x + 5., y), Color::ORANGE);
+
+    let y = 150.;
+    gizmos.line_2d(vec2(-100., y), vec2(100., y), Color::ORANGE);
+    let x = 100. / spec.wings.max_control_angle * hud.ailerons;
+    gizmos.line_2d(vec2(x, y - 5.), vec2(x, y + 5.), Color::ORANGE);
+
+    let y = 180.;
+    gizmos.line_2d(vec2(-100., y), vec2(100., y), Color::ORANGE);
+    let x = 100. / spec.tail.vertical.max_control_angle * hud.rudder;
+    gizmos.line_2d(vec2(x, y - 5.), vec2(x, y + 5.), Color::ORANGE);
+
+    let x = 150.;
+    gizmos.line_2d(vec2(x, -100.), vec2(x, 100.), Color::ORANGE);
+    let y = 100. / spec.tail.horizontal.max_control_angle * hud.elevators;
     gizmos.line_2d(vec2(x - 5., y), vec2(x + 5., y), Color::ORANGE);
 }
