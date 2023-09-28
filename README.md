@@ -2,6 +2,8 @@
 
 Flight simulation using the [Bevy](https://bevyengine.org/) game engine and [Rapier](https://rapier.rs/) physics engine.
 
+[Play online](https://andoco.github.io/flight-sim-bevy-rust/)
+
 ## Run
 
 ```sh
@@ -20,26 +22,30 @@ or
 trunk serve --release
 ```
 
-## Flight dynamics
+## Controls
 
-- Roll is rotation around the front-to-back axis, or z-axis.
-- Pitch is rotation around the side-to-side axis, or x-axis.
-- Yaw is rotation around the vertical axis, or y-axis.
+### Keyboard
 
-Roll is controlled using the ailerons on the main wings by raising them in opposing directions and creating more lift on one side and less on the other. This changes the direction of lift to point to one side and causes sideways movement of the plane.
+- Throttle: A/Z
+- Elevators: Up/Down
+- Rudder: Q/W
+- Ailerons: Left/Right
+- Rear view: F1
+- Top view: F2
+- Side view: F3
+- Cockpit view: F4
 
-Pitch is controlled using the elevators on the horizontal tail wings by raising them to create less lift and dropping the tail, or lowering them to create more lift and raising the tail.
+### Gamepad
 
-Yaw is controlled using the rudder on the vertical tail fin by creating more lift in a sideways direction and pulling the tail in one direction.
+- Throttle: Right stick Y axis
+- Elevators: Left stick Y axis
+- Rudder: Right stick X axis
+- Ailerons: Left stick X axis
+- Rear view: DPad down
+- Top view: DPad up
+- Side view: Dpad right
+- Cockpit view: Dpad left
 
-Turning the plane is usually achieved by using the the rudder and the ailerons together.
+## Useful resources
 
-## Calculating lift
-
-`L = 0.5 * p * v^2 * Sref * CL`
-
-- L denotes lift force.
-- V defines the velocity of aircraft expressed in m/s.
-- ρ is air density, affected by altitude. Air densitry is 1.225 kg/m^3 at sea level.
-- Sref is the reference area or the wing area of an aircraft measured in square metres.
-- CL is the coefficient of lift, depending on the angle of attack and the type of aerofoil.
+- [Fundamentals Of Aircraft Design](https://aerotoolbox.com/category/intro-aircraft-design/)
