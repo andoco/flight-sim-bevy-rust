@@ -40,6 +40,8 @@ pub struct WingModel {
     pub size: Vec3Model,
     pub lift_coefficient_curve: Vec<(String, String)>,
     pub drag_coefficient_curve: Vec<(String, String)>,
+    pub angle: String,
+    pub max_control_angle: String,
 }
 
 impl WingModel {
@@ -56,6 +58,8 @@ impl WingModel {
                 .iter()
                 .map(|(l, a)| (l.to_string(), a.to_string()))
                 .collect(),
+            angle: value.angle.to_degrees().to_string(),
+            max_control_angle: value.max_control_angle.to_degrees().to_string(),
         }
     }
 
@@ -76,6 +80,12 @@ impl WingModel {
                 .iter()
                 .map(|(l, a)| (l.parse().unwrap_or_default(), a.parse().unwrap_or_default()))
                 .collect(),
+            angle: self.angle.parse::<f32>().unwrap_or_default().to_radians(),
+            max_control_angle: self
+                .max_control_angle
+                .parse::<f32>()
+                .unwrap_or_default()
+                .to_radians(),
             ..default()
         }
     }

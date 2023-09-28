@@ -272,6 +272,8 @@ impl UiExt for Ui {
                 ui.vec3("size", &mut value.size);
                 ui.coefficient_curve("lift coefficient curve", &mut value.lift_coefficient_curve);
                 ui.coefficient_curve("drag coefficient curve", &mut value.drag_coefficient_curve);
+                ui.float_edit("angle", &mut value.angle);
+                ui.float_edit("max control angle", &mut value.max_control_angle);
             });
         });
     }
