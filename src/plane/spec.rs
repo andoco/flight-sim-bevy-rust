@@ -32,7 +32,7 @@ impl Default for PlaneSpec {
                     (0.8, 15.0),
                     (0.0, 90.0),
                 ],
-                max_control_angle: 1_f32.to_radians(),
+                max_control_angle: 2.5_f32.to_radians(),
                 ..default()
             },
             tail: TailSpec {
@@ -48,7 +48,7 @@ impl Default for PlaneSpec {
                         (0.1, 10.0),
                         (0.0, 90.0),
                     ],
-                    max_control_angle: 2_f32.to_radians(),
+                    max_control_angle: 5_f32.to_radians(),
                     ..default()
                 },
                 horizontal: WingSpec {

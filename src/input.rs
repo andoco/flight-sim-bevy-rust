@@ -45,10 +45,10 @@ pub enum PlaneAction {
     FollowInside,
 }
 
+const STICK_THRESHOLD: f32 = 0.2;
+
 fn add_plane_input(mut commands: Commands) {
     info!("Adding input");
-
-    const STICK_THRESHOLD: f32 = 0.1;
 
     commands.spawn(InputManagerBundle::<PlaneAction> {
         action_state: ActionState::default(),
@@ -157,21 +157,24 @@ fn handle_gamepad_input(
         control.clear();
     }
 
+    let scaled_value =
+        |v: f32| -> f32 { v.signum() * (v.abs() - STICK_THRESHOLD) / (1. - STICK_THRESHOLD) };
+
     if action_state.pressed(PlaneAction::Pitch) {
-        control.elevators =
-            action_state.clamped_value(PlaneAction::Pitch) * spec.tail.horizontal.max_control_angle;
+        control.elevators = scaled_value(action_state.clamped_value(PlaneAction::Pitch))
+            * spec.tail.horizontal.max_control_angle;
     }
     if action_state.pressed(PlaneAction::Roll) {
-        control.ailerons =
-            action_state.clamped_value(PlaneAction::Roll) * spec.wings.max_control_angle;
+        control.ailerons = scaled_value(action_state.clamped_value(PlaneAction::Roll))
+            * spec.wings.max_control_angle;
     }
     if action_state.pressed(PlaneAction::Throttle) {
         thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 50.0;
         thrust.0 = thrust.0.clamp(0., spec.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
-        control.rudder =
-            action_state.clamped_value(PlaneAction::Rudder) * spec.tail.vertical.max_control_angle;
+        control.rudder = scaled_value(action_state.clamped_value(PlaneAction::Rudder))
+            * spec.tail.vertical.max_control_angle;
     }
 
     if action_state.just_pressed(PlaneAction::FollowAbove) {
