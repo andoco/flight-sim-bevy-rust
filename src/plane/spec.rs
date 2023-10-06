@@ -10,15 +10,6 @@ pub struct PlaneSpec {
     pub tail: TailSpec,
 }
 
-impl PlaneSpec {
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            ..default()
-        }
-    }
-}
-
 impl Default for PlaneSpec {
     fn default() -> Self {
         Self {
