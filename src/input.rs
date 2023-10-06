@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::ExternalForce;
+
 use leafwing_input_manager::{
     prelude::{ActionState, InputManagerPlugin, InputMap, SingleAxis},
     Actionlike, InputManagerBundle,
@@ -48,6 +48,8 @@ pub enum PlaneAction {
 fn add_plane_input(mut commands: Commands) {
     info!("Adding input");
 
+    const STICK_THRESHOLD: f32 = 0.1;
+
     commands.spawn(InputManagerBundle::<PlaneAction> {
         action_state: ActionState::default(),
         input_map: InputMap::default()
@@ -64,19 +66,19 @@ fn add_plane_input(mut commands: Commands) {
             .insert(KeyCode::F3, PlaneAction::FollowSide)
             .insert(KeyCode::F4, PlaneAction::FollowInside)
             .insert(
-                SingleAxis::symmetric(GamepadAxisType::LeftStickY, 0.25),
+                SingleAxis::symmetric(GamepadAxisType::LeftStickY, STICK_THRESHOLD),
                 PlaneAction::Pitch,
             )
             .insert(
-                SingleAxis::symmetric(GamepadAxisType::LeftStickX, 0.25),
+                SingleAxis::symmetric(GamepadAxisType::LeftStickX, STICK_THRESHOLD),
                 PlaneAction::Roll,
             )
             .insert(
-                SingleAxis::symmetric(GamepadAxisType::RightStickY, 0.25),
+                SingleAxis::symmetric(GamepadAxisType::RightStickY, STICK_THRESHOLD),
                 PlaneAction::Throttle,
             )
             .insert(
-                SingleAxis::symmetric(GamepadAxisType::RightStickX, 0.25),
+                SingleAxis::symmetric(GamepadAxisType::RightStickX, STICK_THRESHOLD),
                 PlaneAction::Rudder,
             )
             .insert(GamepadButtonType::DPadDown, PlaneAction::FollowBehind)
@@ -156,17 +158,20 @@ fn handle_gamepad_input(
     }
 
     if action_state.pressed(PlaneAction::Pitch) {
-        control.elevators = (action_state.clamped_value(PlaneAction::Pitch) * 10.0).to_radians();
+        control.elevators =
+            action_state.clamped_value(PlaneAction::Pitch) * spec.tail.horizontal.max_control_angle;
     }
     if action_state.pressed(PlaneAction::Roll) {
-        control.ailerons = (action_state.clamped_value(PlaneAction::Roll) * 0.25).to_radians();
+        control.ailerons =
+            action_state.clamped_value(PlaneAction::Roll) * spec.wings.max_control_angle;
     }
     if action_state.pressed(PlaneAction::Throttle) {
         thrust.0 += action_state.clamped_value(PlaneAction::Throttle) * time.delta_seconds() * 50.0;
         thrust.0 = thrust.0.clamp(0., spec.thrust);
     }
     if action_state.pressed(PlaneAction::Rudder) {
-        control.rudder = (action_state.clamped_value(PlaneAction::Rudder) * 1.0).to_radians();
+        control.rudder =
+            action_state.clamped_value(PlaneAction::Rudder) * spec.tail.vertical.max_control_angle;
     }
 
     if action_state.just_pressed(PlaneAction::FollowAbove) {
