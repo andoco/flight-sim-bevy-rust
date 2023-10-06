@@ -137,24 +137,13 @@ fn handle_keyboard_input(
 fn handle_gamepad_input(
     mut commands: Commands,
     mut action_query: Query<&ActionState<PlaneAction>>,
-    mut plane_query: Query<
-        (
-            Entity,
-            &PlaneSpec,
-            &mut ExternalForce,
-            &mut PlaneControl,
-            &mut Thrust,
-        ),
-        With<Plane>,
-    >,
+    mut plane_query: Query<(Entity, &PlaneSpec, &mut PlaneControl, &mut Thrust), With<Plane>>,
     time: Res<Time>,
 ) {
     let Ok(action_state) = action_query.get_single_mut() else {
         return;
     };
-    let Ok((entity, spec, mut external_force, mut control, mut thrust)) =
-        plane_query.get_single_mut()
-    else {
+    let Ok((entity, spec, mut control, mut thrust)) = plane_query.get_single_mut() else {
         return;
     };
 
@@ -162,8 +151,8 @@ fn handle_gamepad_input(
         || action_state.just_released(PlaneAction::Roll)
         || action_state.just_released(PlaneAction::Rudder)
     {
-        info!("Resetting torque");
-        external_force.torque = Vec3::ZERO;
+        info!("Resetting control");
+        control.clear();
     }
 
     if action_state.pressed(PlaneAction::Pitch) {
